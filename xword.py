@@ -93,10 +93,14 @@ class Puzzle:
             self.move(0, 1)
 
     def backspace(self):
-        if self.direction == 'across':
-            self.move(-1, 0)
-        else:
-            self.move(0, -1)
+        # If the cursor is on a letter, delete that letter,
+        # otherwise delete the previous letter. This ensures
+        # that the last letter on a line is deletable.
+        if self.get(self.x, self.y) == EMPTY:
+            if self.direction == 'across':
+                self.move(-1, 0)
+            else:
+                self.move(0, -1)
         self.buffer[self.y][self.x] = EMPTY
 
     def render(self):
