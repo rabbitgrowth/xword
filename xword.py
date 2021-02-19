@@ -40,6 +40,9 @@ class Puzzle:
         except IndexError:
             return None
 
+    def set(self, x, y, letter):
+        self.buffer[y][x] = letter
+
     def move(self, dx, dy):
         x = self.x
         y = self.y
@@ -86,7 +89,7 @@ class Puzzle:
         self.direction = 'down' if self.direction == 'across' else 'across'
 
     def type(self, key):
-        self.buffer[self.y][self.x] = key.upper()
+        self.set(self.x, self.y, key.upper())
         if self.direction == 'across':
             self.move(1, 0)
         else:
@@ -101,7 +104,7 @@ class Puzzle:
                 self.move(-1, 0)
             else:
                 self.move(0, -1)
-        self.buffer[self.y][self.x] = EMPTY
+        self.set(self.x, self.y, EMPTY)
 
     def render(self):
         chunks = []
