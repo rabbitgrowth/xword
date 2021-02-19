@@ -65,6 +65,8 @@ class Puzzle:
                 self.move(-1, 0)
             elif key == 'l':
                 self.move(1, 0)
+            elif key == 'x':
+                self.delete()
             elif key == 'i':
                 self.insert()
             elif key == ' ':
@@ -104,6 +106,9 @@ class Puzzle:
                 self.move(-1, 0)
             else:
                 self.move(0, -1)
+        self.delete()
+
+    def delete(self):
         self.set(self.x, self.y, EMPTY)
 
     def render(self):
