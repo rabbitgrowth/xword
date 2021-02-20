@@ -2,7 +2,8 @@ import curses
 import os
 import struct
 import sys
-from string import ascii_lowercase
+from collections import defaultdict
+from string      import ascii_lowercase
 
 ENCODING = 'iso-8859-1' # used by the .puz format
 
@@ -11,26 +12,56 @@ EMPTY = '-'
 
 LETTERS = set(ascii_lowercase)
 
+# Use True and False for easy toggling
+ACROSS = True
+DOWN   = False
+
 class Puzzle:
     def __init__(self,
-                 answers, buffer, numbers, acrosses, downs,
+                 answers, buffer, cluelist,
                  title, author, copyright, notes):
         # Puzzle information
         self.answers   = answers
         self.buffer    = buffer
-        self.numbers   = numbers
-        self.acrosses  = acrosses
-        self.downs     = downs
+        self.cluelist  = cluelist
         self.title     = title
         self.author    = author
         self.copyright = copyright
         self.notes     = notes
+
+        self.assign()
 
         # Initial cursor position
         self.x         = 0
         self.y         = 0
         self.direction = 'across'
         self.mode      = 'normal'
+
+    def assign(self):
+        cluelist     = iter(self.cluelist)
+        self.clues   = defaultdict(dict)
+        number       = 1
+        self.numbers = []
+
+        for y, row in enumerate(self.buffer):
+            number_row = []
+            for x, square in enumerate(row):
+                if square == BLACK:
+                    number_row.append(None)
+                    continue
+                numbered = False
+                if x == 0 or self.buffer[y][x - 1] == BLACK: # across numbered
+                    self.clues[ACROSS][number] = next(cluelist)
+                    numbered = True
+                if y == 0 or self.buffer[y - 1][x] == BLACK: # down numbered
+                    self.clues[DOWN][number] = next(cluelist)
+                    numbered = True
+                if numbered:
+                    number_row.append(number)
+                    number += 1
+                else:
+                    number_row.append(None)
+            self.numbers.append(number_row)
 
     @property
     def width(self):
@@ -178,43 +209,10 @@ def parse(filename):
         answers, buffer = ([list(f.read(width).decode(ENCODING)) for _ in range(height)]
                            for _ in range(2))
         strings = f.read().decode(ENCODING).removesuffix('\0').split('\0')
-        title, author, copyright, *clues, notes = strings
-        assert len(clues) == nclues, f'Expected {nclues} clues, got {len(clues)}'
-        # Assign numbers to the squares and clues.
-        # Only the positions of black squares matter,
-        # so `buffer` instead of `answers` should also work.
-        acrosses, downs, numbers = assign(answers, clues)
-        return Puzzle(answers, buffer, numbers, acrosses, downs,
+        title, author, copyright, *cluelist, notes = strings
+        assert len(cluelist) == nclues, f'Expected {nclues} clues, got {len(cluelist)}'
+        return Puzzle(answers, buffer, cluelist,
                       title, author, copyright, notes)
-
-def assign(grid, clues):
-    clues    = iter(clues)
-    acrosses = []
-    downs    = []
-    number   = 1
-    numbers  = []
-
-    for y, row in enumerate(grid):
-        number_row = []
-        for x, square in enumerate(row):
-            if square == BLACK:
-                number_row.append(None)
-                continue
-            numbered = False
-            if x == 0 or grid[y][x - 1] == BLACK: # across numbered
-                acrosses.append((number, next(clues)))
-                numbered = True
-            if y == 0 or grid[y - 1][x] == BLACK: # down numbered
-                downs.append((number, next(clues)))
-                numbered = True
-            if numbered:
-                number_row.append(number)
-                number += 1
-            else:
-                number_row.append(None)
-        numbers.append(number_row)
-
-    return acrosses, downs, numbers
 
 if __name__ == '__main__':
     puzzle = parse(sys.argv[1])
