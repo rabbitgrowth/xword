@@ -197,8 +197,7 @@ class Puzzle:
                     fill = left + middle + right
                 chunks.append('|' + fill)
             chunks.append('|')
-        width = len(self.numbers[0])
-        chunks.append("'---" * width + "'")
+        chunks.append("'---" * self.width + "'")
         return ''.join(chunks)
 
 def parse(filename):
