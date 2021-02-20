@@ -32,6 +32,19 @@ class Puzzle:
         self.direction = 'across'
         self.mode      = 'normal'
 
+    def run(self):
+        # Prevent escape key delay
+        os.environ.setdefault('ESCDELAY', '0')
+
+        def main(stdscr):
+            curses.curs_set(0) # invisible cursor
+            while True:
+                stdscr.addstr(0, 0, self.render())
+                stdscr.refresh()
+                self.handle(stdscr.getkey())
+
+        curses.wrapper(main)
+
     def get(self, x, y):
         if x < 0 or y < 0:
             return None
@@ -179,16 +192,5 @@ def assign(grid, clues):
     return acrosses, downs, numbers
 
 if __name__ == '__main__':
-    # Prevent escape key delay
-    os.environ.setdefault('ESCDELAY', '0')
-
-    def main(stdscr):
-        curses.curs_set(0) # invisible cursor
-        puzzle = parse(sys.argv[1])
-        while True:
-            stdscr.addstr(0, 0, puzzle.render())
-            stdscr.refresh()
-            key = stdscr.getkey()
-            puzzle.handle(key)
-
-    curses.wrapper(main)
+    puzzle = parse(sys.argv[1])
+    puzzle.run()
