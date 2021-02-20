@@ -41,13 +41,11 @@ class Puzzle:
         cluelist     = iter(self.cluelist)
         self.clues   = defaultdict(dict)
         number       = 1
-        self.numbers = []
+        self.numbers = {}
 
         for y, row in enumerate(self.buffer):
-            number_row = []
             for x, square in enumerate(row):
                 if square == BLACK:
-                    number_row.append(None)
                     continue
                 numbered = False
                 if x == 0 or self.buffer[y][x - 1] == BLACK: # across numbered
@@ -57,11 +55,8 @@ class Puzzle:
                     self.clues[DOWN][number] = next(cluelist)
                     numbered = True
                 if numbered:
-                    number_row.append(number)
+                    self.numbers[(x, y)] = number
                     number += 1
-                else:
-                    number_row.append(None)
-            self.numbers.append(number_row)
 
     @property
     def width(self):
@@ -182,13 +177,14 @@ class Puzzle:
 
     def render(self):
         chunks = []
-        for y, (number_row, buffer_row) in enumerate(zip(self.numbers, self.buffer)):
-            for x, number in enumerate(number_row):
+        for y, row in enumerate(self.buffer):
+            for x, square in enumerate(row):
+                number = self.numbers.get((x, y))
                 vertex = '.' if y == 0 else ('.' if x == 0 else '+')
                 edge   = '---' if number is None else f'{number:-<3}'
                 chunks.append(vertex + edge)
             chunks.append('.')
-            for x, square in enumerate(buffer_row):
+            for x, square in enumerate(row):
                 if square == BLACK:
                     fill = '///'
                 else:
