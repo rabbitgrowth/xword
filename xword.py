@@ -32,16 +32,37 @@ class Puzzle:
         self.direction = 'across'
         self.mode      = 'normal'
 
+    @property
+    def width(self):
+        return len(self.buffer[0])
+
+    @property
+    def height(self):
+        return len(self.buffer)
+
     def run(self):
         # Prevent escape key delay
         os.environ.setdefault('ESCDELAY', '0')
 
         def main(stdscr):
-            curses.curs_set(0) # invisible cursor
+            # Make cursor invisible
+            curses.curs_set(0)
+            # As a bit of an ugly hack, add an extra line at the bottom
+            # to get around the curses quirk of not allowing writing at
+            # the bottom right corner
+            self.maingrid = curses.newwin(self.height * 2 + 2,
+                                          self.width  * 4 + 1,
+                                          0,
+                                          0)
+            self.modeline = curses.newwin(1,
+                                          self.width  * 4 + 1,
+                                          self.height * 2 + 2,
+                                          0)
             while True:
-                stdscr.addstr(0, 0, self.render())
-                stdscr.refresh()
-                self.handle(stdscr.getkey())
+                self.maingrid.addstr(0, 0, self.render())
+                self.maingrid.refresh()
+                key = self.maingrid.getkey()
+                self.handle(key)
 
         curses.wrapper(main)
 
@@ -96,9 +117,13 @@ class Puzzle:
 
     def insert(self):
         self.mode = 'insert'
+        self.modeline.addstr('-- INSERT --')
+        self.modeline.refresh()
 
     def escape(self):
         self.mode = 'normal'
+        self.modeline.erase()
+        self.modeline.refresh()
 
     def toggle(self):
         self.direction = 'down' if self.direction == 'across' else 'across'
@@ -131,7 +156,7 @@ class Puzzle:
                 vertex = '.' if y == 0 else ('.' if x == 0 else '+')
                 edge   = '---' if number is None else f'{number:-<3}'
                 chunks.append(vertex + edge)
-            chunks.append('.\n')
+            chunks.append('.')
             for x, square in enumerate(buffer_row):
                 if square == BLACK:
                     fill = '///'
@@ -140,9 +165,9 @@ class Puzzle:
                     middle = ' ' if square == EMPTY else square
                     fill = left + middle + right
                 chunks.append('|' + fill)
-            chunks.append('|\n')
+            chunks.append('|')
         width = len(self.numbers[0])
-        chunks.append("'---" * width + "'\n")
+        chunks.append("'---" * width + "'")
         return ''.join(chunks)
 
 def parse(filename):
