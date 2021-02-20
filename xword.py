@@ -50,10 +50,10 @@ class Puzzle:
             # As a bit of an ugly hack, add an extra line at the bottom
             # to get around the curses quirk of not allowing writing at
             # the bottom right corner
-            self.maingrid = curses.newwin(self.height * 2 + 2,
-                                          self.width  * 4 + 1,
-                                          0,
-                                          0)
+            self.maingrid = curses.newwin(self.height * 2 + 2, # nlines (with one extra)
+                                          self.width  * 4 + 1, # ncols
+                                          0,                   # begin_y
+                                          0)                   # begin_x
             self.modeline = curses.newwin(1,
                                           self.width  * 4 + 1,
                                           self.height * 2 + 2,
