@@ -178,13 +178,14 @@ class Puzzle:
     def render(self):
         chunks = []
         for y, row in enumerate(self.buffer):
-            for x, square in enumerate(row):
+            squares = list(enumerate(row))
+            for x, square in squares:
                 number = self.numbers.get((x, y))
                 vertex = '.' if y == 0 else ('.' if x == 0 else '+')
                 edge   = '---' if number is None else f'{number:-<3}'
                 chunks.append(vertex + edge)
             chunks.append('.')
-            for x, square in enumerate(row):
+            for x, square in squares:
                 if square == BLACK:
                     fill = '///'
                 else:
