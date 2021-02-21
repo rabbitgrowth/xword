@@ -85,7 +85,7 @@ class Puzzle:
                                           self.height * 2 + 2,
                                           0)
             while True:
-                self.maingrid.addstr(0, 0, self.render())
+                self.maingrid.addstr(0, 0, ''.join(self.render()))
                 self.maingrid.refresh()
                 key = self.maingrid.getkey()
                 self.handle(key)
@@ -176,15 +176,15 @@ class Puzzle:
         self.set(self.x, self.y, EMPTY)
 
     def render(self):
-        chunks = []
         for y, row in enumerate(self.buffer):
             squares = list(enumerate(row))
             for x, square in squares:
                 number = self.numbers.get((x, y))
                 vertex = '.' if y == 0 else ('.' if x == 0 else '+')
                 edge   = '---' if number is None else f'{number:-<3}'
-                chunks.append(vertex + edge)
-            chunks.append('.')
+                yield vertex
+                yield edge
+            yield '.'
             for x, square in squares:
                 if square == BLACK:
                     fill = '///'
@@ -192,10 +192,11 @@ class Puzzle:
                     left, right = '><' if (x, y) == (self.x, self.y) else '  '
                     middle = ' ' if square == EMPTY else square
                     fill = left + middle + right
-                chunks.append('|' + fill)
-            chunks.append('|')
-        chunks.append("'---" * self.width + "'")
-        return ''.join(chunks)
+                yield '|'
+                yield fill
+            yield '|'
+        yield "'---" * self.width
+        yield "'"
 
 def parse(filename):
     with open(filename, 'rb') as f:
