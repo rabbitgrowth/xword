@@ -3,6 +3,7 @@ import os
 import struct
 import sys
 from collections import defaultdict
+from itertools   import groupby
 from string      import ascii_lowercase
 
 ENCODING = 'iso-8859-1' # used by the .puz format
@@ -11,10 +12,6 @@ BLACK = '.'
 EMPTY = '-'
 
 LETTERS = set(ascii_lowercase)
-
-# Use True and False for easy toggling
-ACROSS = True
-DOWN   = False
 
 class Puzzle:
     def __init__(self,
@@ -38,21 +35,45 @@ class Puzzle:
         self.mode      = 'normal'
 
     def assign(self):
-        cluelist     = iter(self.cluelist)
-        self.clues   = defaultdict(dict)
-        number       = 1
-        self.numbers = {}
+        self.starts = defaultdict(dict)
+        self.spans  = defaultdict(lambda: defaultdict(list))
 
         for y, row in enumerate(self.buffer):
-            for x, square in enumerate(row):
-                if square == BLACK:
-                    continue
+            for is_white, x_squares in groupby(enumerate(row),
+                                               key=lambda x_square: x_square[1] != BLACK):
+                if is_white:
+                    x_squares = list(x_squares)
+                    first_x   = x_squares[0][0]
+                    for x, square in x_squares:
+                        self.starts['across'][(x, y)] = (first_x, y)
+                        self.spans['across'][(first_x, y)].append((x, y))
+
+        for x, column in enumerate(zip(*self.buffer)):
+            for is_white, y_squares in groupby(enumerate(column),
+                                               key=lambda y_square: y_square[1] != BLACK):
+                if is_white:
+                    y_squares = list(y_squares)
+                    first_y   = y_squares[0][0]
+                    for y, square in y_squares:
+                        self.starts['down'][(x, y)] = (x, first_y)
+                        self.spans['down'][(x, first_y)].append((x, y))
+
+        self.clues   = defaultdict(dict)
+        self.numbers = {}
+        cluelist     = iter(self.cluelist)
+        number       = 1
+
+        across_starts = set(self.starts['across'].values())
+        down_starts   = set(self.starts['down'].values())
+
+        for y in range(self.height):
+            for x in range(self.width):
                 numbered = False
-                if x == 0 or self.buffer[y][x - 1] == BLACK: # across numbered
-                    self.clues[ACROSS][number] = next(cluelist)
+                if (x, y) in across_starts:
+                    self.clues['across'][number] = next(cluelist)
                     numbered = True
-                if y == 0 or self.buffer[y - 1][x] == BLACK: # down numbered
-                    self.clues[DOWN][number] = next(cluelist)
+                if (x, y) in down_starts:
+                    self.clues['down'][number] = next(cluelist)
                     numbered = True
                 if numbered:
                     self.numbers[(x, y)] = number
