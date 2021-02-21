@@ -197,6 +197,9 @@ class Puzzle:
         self.set(self.x, self.y, EMPTY)
 
     def render(self):
+        start = self.starts[self.direction][(self.x, self.y)]
+        span  = set(self.spans[self.direction][start])
+
         for y, row in enumerate(self.buffer):
             squares = list(enumerate(row))
             for x, square in squares:
@@ -210,7 +213,12 @@ class Puzzle:
                 if square == BLACK:
                     fill = '///'
                 else:
-                    left, right = '><' if (x, y) == (self.x, self.y) else '  '
+                    if (x, y) == (self.x, self.y):
+                        left, right = '><'
+                    elif (x, y) in span:
+                        left, right = '..'
+                    else:
+                        left, right = '  '
                     middle = ' ' if square == EMPTY else square
                     fill = left + middle + right
                 yield '|'
