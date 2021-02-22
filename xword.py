@@ -13,6 +13,8 @@ EMPTY = '-'
 
 LETTERS = set(ascii_lowercase)
 
+DIRECTIONS = ('across', 'down')
+
 class Puzzle:
     def __init__(self,
                  answers, buffer, cluelist,
@@ -35,8 +37,8 @@ class Puzzle:
         self.mode      = 'normal'
 
     def assign(self):
-        self.starts = defaultdict(dict)
-        self.spans  = defaultdict(lambda: defaultdict(list))
+        self.starts = {direction: {}                for direction in DIRECTIONS}
+        self.spans  = {direction: defaultdict(list) for direction in DIRECTIONS}
 
         for y, row in enumerate(self.buffer):
             for is_white, x_squares in groupby(enumerate(row),
