@@ -39,6 +39,7 @@ class Puzzle:
     def assign(self):
         self.starts = {direction: {}                for direction in DIRECTIONS}
         self.spans  = {direction: defaultdict(list) for direction in DIRECTIONS}
+        starts      = {direction: set()             for direction in DIRECTIONS}
 
         for y, row in enumerate(self.buffer):
             for is_white, x_squares in groupby(enumerate(row),
@@ -46,6 +47,7 @@ class Puzzle:
                 if is_white:
                     x_squares = list(x_squares)
                     first_x   = x_squares[0][0]
+                    starts['across'].add((first_x, y))
                     for x, square in x_squares:
                         self.starts['across'][(x, y)] = (first_x, y)
                         self.spans['across'][(first_x, y)].append((x, y))
@@ -56,6 +58,7 @@ class Puzzle:
                 if is_white:
                     y_squares = list(y_squares)
                     first_y   = y_squares[0][0]
+                    starts['down'].add((x, first_y))
                     for y, square in y_squares:
                         self.starts['down'][(x, y)] = (x, first_y)
                         self.spans['down'][(x, first_y)].append((x, y))
@@ -65,18 +68,13 @@ class Puzzle:
         cluelist     = iter(self.cluelist)
         number       = 1
 
-        across_starts = set(self.starts['across'].values())
-        down_starts   = set(self.starts['down'].values())
-
         for y in range(self.height):
             for x in range(self.width):
                 numbered = False
-                if (x, y) in across_starts:
-                    self.clues['across'][number] = next(cluelist)
-                    numbered = True
-                if (x, y) in down_starts:
-                    self.clues['down'][number] = next(cluelist)
-                    numbered = True
+                for direction in DIRECTIONS:
+                    if (x, y) in starts[direction]:
+                        self.clues[direction][number] = next(cluelist)
+                        numbered = True
                 if numbered:
                     self.numbers[(x, y)] = number
                     number += 1
