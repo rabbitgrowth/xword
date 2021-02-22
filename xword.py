@@ -157,6 +157,10 @@ class Puzzle:
 
         self.buffer[y][x] = letter
 
+    def jump(self, x, y):
+        self.x = x
+        self.y = y
+
     def move(self, dx, dy):
         x = self.x
         y = self.y
@@ -166,8 +170,7 @@ class Puzzle:
             x += dx
             y += dy
         if self.get(x, y) is not None:
-            self.x = x
-            self.y = y
+            self.jump(x, y)
 
     def insert(self):
         self.mode = 'insert'
