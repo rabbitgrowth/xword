@@ -136,7 +136,12 @@ class Puzzle:
             elif key == '\x1b':
                 self.escape()
 
-    def get(self, x, y):
+    def get(self, x=None, y=None):
+        if x is None:
+            x = self.x
+        if y is None:
+            y = self.y
+
         if x < 0 or y < 0:
             return None
         try:
@@ -144,7 +149,12 @@ class Puzzle:
         except IndexError:
             return None
 
-    def set(self, x, y, letter):
+    def set(self, letter, x=None, y=None):
+        if x is None:
+            x = self.x
+        if y is None:
+            y = self.y
+
         self.buffer[y][x] = letter
 
     def move(self, dx, dy):
@@ -173,7 +183,7 @@ class Puzzle:
         self.direction = 'down' if self.direction == 'across' else 'across'
 
     def type(self, key):
-        self.set(self.x, self.y, key.upper())
+        self.set(key.upper())
         if self.direction == 'across':
             self.move(1, 0)
         else:
@@ -183,7 +193,7 @@ class Puzzle:
         # If the cursor is on a letter, delete that letter,
         # otherwise delete the previous letter. This ensures
         # that the last letter on a line is deletable.
-        if self.get(self.x, self.y) == EMPTY:
+        if self.get() == EMPTY:
             if self.direction == 'across':
                 self.move(-1, 0)
             else:
@@ -191,7 +201,7 @@ class Puzzle:
         self.delete()
 
     def delete(self):
-        self.set(self.x, self.y, EMPTY)
+        self.set(EMPTY)
 
     def render(self):
         start = self.starts[self.direction][(self.x, self.y)]
