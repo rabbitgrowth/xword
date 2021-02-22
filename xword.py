@@ -28,6 +28,11 @@ class Puzzle:
         self.copyright = copyright
         self.notes     = notes
 
+        # Useful properties
+        self.width  = len(self.answers[0])
+        self.height = len(self.answers)
+
+        # Assign numbers to squares and clues
         self.assign()
 
         # Initial cursor position
@@ -78,14 +83,6 @@ class Puzzle:
                 if numbered:
                     self.numbers[(x, y)] = number
                     number += 1
-
-    @property
-    def width(self):
-        return len(self.buffer[0])
-
-    @property
-    def height(self):
-        return len(self.buffer)
 
     def run(self):
         # Prevent escape key delay
