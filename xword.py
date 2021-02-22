@@ -113,29 +113,6 @@ class Puzzle:
 
         curses.wrapper(main)
 
-    def get(self, x, y):
-        if x < 0 or y < 0:
-            return None
-        try:
-            return self.buffer[y][x]
-        except IndexError:
-            return None
-
-    def set(self, x, y, letter):
-        self.buffer[y][x] = letter
-
-    def move(self, dx, dy):
-        x = self.x
-        y = self.y
-        x += dx
-        y += dy
-        while self.get(x, y) == BLACK:
-            x += dx
-            y += dy
-        if self.get(x, y) is not None:
-            self.x = x
-            self.y = y
-
     def handle(self, key):
         if self.mode == 'normal':
             if key == 'k':
@@ -161,6 +138,29 @@ class Puzzle:
                 self.backspace()
             elif key == '\x1b':
                 self.escape()
+
+    def get(self, x, y):
+        if x < 0 or y < 0:
+            return None
+        try:
+            return self.buffer[y][x]
+        except IndexError:
+            return None
+
+    def set(self, x, y, letter):
+        self.buffer[y][x] = letter
+
+    def move(self, dx, dy):
+        x = self.x
+        y = self.y
+        x += dx
+        y += dy
+        while self.get(x, y) == BLACK:
+            x += dx
+            y += dy
+        if self.get(x, y) is not None:
+            self.x = x
+            self.y = y
 
     def insert(self):
         self.mode = 'insert'
