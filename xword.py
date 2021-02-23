@@ -11,78 +11,78 @@ ENCODING = 'iso-8859-1' # used by the .puz format
 BLACK = '.'
 EMPTY = '-'
 
-LETTERS = set(ascii_lowercase)
-
 DIRECTIONS = ('across', 'down')
 
+LETTERS = set(ascii_lowercase)
+
 class Puzzle:
-    def __init__(self,
-                 answers, buffer, cluelist,
-                 title, author, copyright, notes):
-        # Puzzle information
-        self.answers   = answers
-        self.buffer    = buffer
-        self.cluelist  = cluelist
-        self.title     = title
-        self.author    = author
-        self.copyright = copyright
-        self.notes     = notes
+    def __init__(self, answers, buffer, cluelist):
+        self.answers = answers
+        self.buffer  = buffer
 
-        # Useful properties
-        self.width  = len(self.answers[0])
-        self.height = len(self.answers)
+        self.width  = len(answers[0])
+        self.height = len(answers)
 
-        # Assign numbers to squares and clues
-        self.assign()
+        # Map coords that start clues (across or down)
+        # to lists of coords the clues span
+        starts = {direction: {} for direction in DIRECTIONS}
 
-        # Initial cursor position
-        self.x         = 0
-        self.y         = 0
-        self.direction = 'across'
-        self.mode      = 'normal'
-
-    def assign(self):
-        self.starts = {direction: {}                for direction in DIRECTIONS}
-        self.spans  = {direction: defaultdict(list) for direction in DIRECTIONS}
-        starts      = {direction: set()             for direction in DIRECTIONS}
+        def key(pair):
+            index, square = pair
+            return square != BLACK
 
         for y, row in enumerate(self.buffer):
-            for is_white, x_squares in groupby(enumerate(row),
-                                               key=lambda x_square: x_square[1] != BLACK):
-                if is_white:
-                    x_squares = list(x_squares)
-                    first_x   = x_squares[0][0]
-                    starts['across'].add((first_x, y))
-                    for x, square in x_squares:
-                        self.starts['across'][(x, y)] = (first_x, y)
-                        self.spans['across'][(first_x, y)].append((x, y))
+            for white, pairs in groupby(enumerate(row), key=key):
+                if white:
+                    xs = [x for x, _ in pairs]
+                    starts['across'][(xs[0], y)] = [(x, y) for x in xs]
 
-        for x, column in enumerate(zip(*self.buffer)):
-            for is_white, y_squares in groupby(enumerate(column),
-                                               key=lambda y_square: y_square[1] != BLACK):
-                if is_white:
-                    y_squares = list(y_squares)
-                    first_y   = y_squares[0][0]
-                    starts['down'].add((x, first_y))
-                    for y, square in y_squares:
-                        self.starts['down'][(x, y)] = (x, first_y)
-                        self.spans['down'][(x, first_y)].append((x, y))
+        for x, col in enumerate(zip(*self.buffer)):
+            for white, pairs in groupby(enumerate(col), key=key):
+                if white:
+                    ys = [y for y, _ in pairs]
+                    starts['down'][(x, ys[0])] = [(x, y) for y in ys]
 
-        self.clues   = defaultdict(dict)
+        self.clues   = {direction: [] for direction in DIRECTIONS}
         self.numbers = {}
-        cluelist     = iter(self.cluelist)
+        cluelist     = iter(cluelist)
         number       = 1
+
+        self.clue_by_coords = {direction: {} for direction in DIRECTIONS}
+        self.clue_by_number = {direction: {} for direction in DIRECTIONS}
 
         for y in range(self.height):
             for x in range(self.width):
                 numbered = False
                 for direction in DIRECTIONS:
                     if (x, y) in starts[direction]:
-                        self.clues[direction][number] = next(cluelist)
+                        span = starts[direction][(x, y)]
+                        text = next(cluelist)
+                        clue = Clue(number, span, text)
+                        self.clues[direction].append(clue)
+                        for coords in span:
+                            self.clue_by_coords[direction][coords] = clue
+                        self.clue_by_number[direction][number] = clue
                         numbered = True
                 if numbered:
                     self.numbers[(x, y)] = number
                     number += 1
+
+        for direction in DIRECTIONS:
+            prev_clue = None
+            for clue in self.clues[direction]:
+                if prev_clue is not None:
+                    clue.prev = prev_clue
+                    prev_clue.next = clue
+                prev_clue = clue
+
+        self.mode      = 'normal'
+        self.direction = 'across'
+
+        # Initialize the cursor position to the first square of the
+        # first across clue, which is not necessarily (0, 0), since
+        # there could be black squares in the top left-hand corner.
+        self.x, self.y = self.clues[self.direction][0].span[0]
 
     def run(self):
         # Prevent escape key delay
@@ -110,6 +110,36 @@ class Puzzle:
 
         curses.wrapper(main)
 
+    def render(self):
+        span = set(self.current_clue.span)
+
+        for y, row in enumerate(self.buffer):
+            pairs = list(enumerate(row))
+            for x, square in pairs:
+                number = self.numbers.get((x, y))
+                vertex = '.' if y == 0 else ('.' if x == 0 else '+')
+                edge   = '---' if number is None else f'{number:-<3}'
+                yield vertex
+                yield edge
+            yield '.'
+            for x, square in pairs:
+                if square == BLACK:
+                    fill = '///'
+                else:
+                    if (x, y) == self.current_coords:
+                        left, right = '><'
+                    elif (x, y) in span:
+                        left, right = '..'
+                    else:
+                        left, right = '  '
+                    middle = ' ' if square == EMPTY else square
+                    fill = left + middle + right
+                yield '|'
+                yield fill
+            yield '|'
+        yield "'---" * self.width
+        yield "'"
+
     def handle(self, key):
         if self.mode == 'normal':
             if key == 'k':
@@ -120,12 +150,20 @@ class Puzzle:
                 self.move(-1, 0)
             elif key == 'l':
                 self.move(1, 0)
+            elif key == '0':
+                self.start()
+            elif key == '$':
+                self.end()
+            elif key == 'w':
+                self.next()
+            elif key == 'b':
+                self.prev()
             elif key == 'x':
                 self.delete()
-            elif key == 'i':
-                self.insert()
             elif key == ' ':
                 self.toggle()
+            elif key in ('i', 'a'):
+                self.insert()
             elif key == 'q':
                 sys.exit(0)
         elif self.mode == 'insert':
@@ -133,8 +171,22 @@ class Puzzle:
                 self.type(key)
             elif key == '\x7f':
                 self.backspace()
-            elif key == '\x1b':
+            else:
                 self.escape()
+
+    @property
+    def current_coords(self):
+        return (self.x, self.y)
+
+    @property
+    def current_clue(self):
+        return self.clue_by_coords[self.direction][self.current_coords]
+
+    def in_range(self, x, y):
+        return 0 <= x < self.width and 0 <= y < self.height
+
+    def is_white(self, x, y):
+        return self.get(x, y) not in (BLACK, None)
 
     def get(self, x=None, y=None):
         if x is None:
@@ -142,12 +194,9 @@ class Puzzle:
         if y is None:
             y = self.y
 
-        if x < 0 or y < 0:
+        if not self.in_range(x, y):
             return None
-        try:
-            return self.buffer[y][x]
-        except IndexError:
-            return None
+        return self.buffer[y][x]
 
     def set(self, letter, x=None, y=None):
         if x is None:
@@ -155,6 +204,8 @@ class Puzzle:
         if y is None:
             y = self.y
 
+        if not self.in_range(x, y):
+            raise IndexError(f'Trying to assign to out-of-range square ({x}, {y})')
         self.buffer[y][x] = letter
 
     def jump(self, x, y):
@@ -172,6 +223,43 @@ class Puzzle:
         if self.get(x, y) is not None:
             self.jump(x, y)
 
+    def start(self):
+        self.jump(*self.current_clue.span[0])
+
+    def end(self):
+        self.jump(*self.current_clue.span[-1])
+
+    def next(self):
+        next_clue = self.current_clue.next
+        if next_clue is not None:
+            self.jump(*next_clue.span[0])
+        else:
+            self.jump(*self.clues[self.other_direction(self.direction)][0].span[0])
+            self.toggle()
+
+    def prev(self):
+        prev_clue = self.current_clue.prev
+        if prev_clue is not None:
+            self.jump(*prev_clue.span[0])
+        else:
+            self.jump(*self.clues[self.other_direction(self.direction)][-1].span[0])
+            self.toggle()
+
+    def delete(self, x=None, y=None):
+        if x is None:
+            x = self.x
+        if y is None:
+            y = self.y
+
+        self.set(EMPTY, x, y)
+
+    @staticmethod
+    def other_direction(direction):
+        return 'down' if direction == 'across' else 'across'
+
+    def toggle(self):
+        self.direction = self.other_direction(self.direction)
+
     def insert(self):
         self.mode = 'insert'
         self.modeline.addstr('-- INSERT --')
@@ -182,73 +270,57 @@ class Puzzle:
         self.modeline.erase()
         self.modeline.refresh()
 
-    def toggle(self):
-        self.direction = 'down' if self.direction == 'across' else 'across'
-
-    def type(self, key):
-        self.set(key.upper())
-        if self.direction == 'across':
-            self.move(1, 0)
-        else:
-            self.move(0, 1)
+    def type(self, letter):
+        self.set(letter.upper())
+        self.advance()
 
     def backspace(self):
-        # If the cursor is on a letter, delete that letter,
-        # otherwise delete the previous letter. This ensures
-        # that the last letter on a line is deletable.
-        if self.get() == EMPTY:
-            if self.direction == 'across':
-                self.move(-1, 0)
-            else:
-                self.move(0, -1)
+        self.retreat()
         self.delete()
 
-    def delete(self):
-        self.set(EMPTY)
+    def advance(self):
+        if self.direction == 'across':
+            next_coords = (self.x + 1, self.y)
+        else:
+            next_coords = (self.x, self.y + 1)
+        if not self.is_white(*next_coords):
+            self.next()
+            # self.next() already jumps to the start,
+            # so there's no need to write self.start() here
+            # (compare with retreat() below)
+        else:
+            self.jump(*next_coords)
 
-    def render(self):
-        start = self.starts[self.direction][(self.x, self.y)]
-        span  = set(self.spans[self.direction][start])
+    def retreat(self):
+        if self.direction == 'across':
+            prev_coords = (self.x - 1, self.y)
+        else:
+            prev_coords = (self.x, self.y - 1)
+        if not self.is_white(*prev_coords):
+            self.prev()
+            self.end()
+        else:
+            self.jump(*prev_coords)
 
-        for y, row in enumerate(self.buffer):
-            squares = list(enumerate(row))
-            for x, square in squares:
-                number = self.numbers.get((x, y))
-                vertex = '.' if y == 0 else ('.' if x == 0 else '+')
-                edge   = '---' if number is None else f'{number:-<3}'
-                yield vertex
-                yield edge
-            yield '.'
-            for x, square in squares:
-                if square == BLACK:
-                    fill = '///'
-                else:
-                    if (x, y) == (self.x, self.y):
-                        left, right = '><'
-                    elif (x, y) in span:
-                        left, right = '..'
-                    else:
-                        left, right = '  '
-                    middle = ' ' if square == EMPTY else square
-                    fill = left + middle + right
-                yield '|'
-                yield fill
-            yield '|'
-        yield "'---" * self.width
-        yield "'"
+class Clue:
+    def __init__(self, number, span, text):
+        self.number = number
+        self.span   = span
+        self.text   = text
+        self.prev   = None
+        self.next   = None
 
 def parse(filename):
     with open(filename, 'rb') as f:
-        f.seek(0x2c) # skip stuff like checksums and file magic for now
+        f.seek(0x2c) # skip checksums, file magic, etc. for now
         width, height, nclues = struct.unpack('<BBH', f.read(4))
         f.seek(4, 1) # skip unknown bitmask and scrambled tag
         answers, buffer = ([list(f.read(width).decode(ENCODING)) for _ in range(height)]
                            for _ in range(2))
         strings = f.read().decode(ENCODING).removesuffix('\0').split('\0')
-        title, author, copyright, *cluelist, notes = strings
+        cluelist = strings[3:-1]
         assert len(cluelist) == nclues, f'Expected {nclues} clues, got {len(cluelist)}'
-        return Puzzle(answers, buffer, cluelist,
-                      title, author, copyright, notes)
+        return Puzzle(answers, buffer, cluelist)
 
 if __name__ == '__main__':
     puzzle = parse(sys.argv[1])
