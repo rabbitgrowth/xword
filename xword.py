@@ -142,7 +142,9 @@ class Puzzle:
 
     def handle(self, key):
         # Keys that work in all modes
-        if key == '?':
+        if key == '\t':
+            self.next()
+        elif key == '?':
             self.reveal()
         else:
             # Keys specific to normal mode
