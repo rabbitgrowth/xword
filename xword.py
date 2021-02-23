@@ -167,7 +167,14 @@ class Puzzle:
             elif key == 'q':
                 sys.exit(0)
         elif self.mode == 'insert':
-            if key in LETTERS:
+            if key == 'j':
+                next_key = self.maingrid.getkey()
+                if next_key == 'k':
+                    self.escape()
+                else:
+                    self.type('j')
+                    self.handle(next_key)
+            elif key in LETTERS:
                 self.type(key)
             elif key == '\x7f':
                 self.backspace()
