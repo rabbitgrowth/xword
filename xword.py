@@ -141,45 +141,51 @@ class Puzzle:
         yield "'"
 
     def handle(self, key):
-        if self.mode == 'normal':
-            if key == 'k':
-                self.move(0, -1)
-            elif key == 'j':
-                self.move(0, 1)
-            elif key == 'h':
-                self.move(-1, 0)
-            elif key == 'l':
-                self.move(1, 0)
-            elif key == '0':
-                self.start()
-            elif key == '$':
-                self.end()
-            elif key == 'w':
-                self.next()
-            elif key == 'b':
-                self.prev()
-            elif key == 'x':
-                self.delete()
-            elif key == ' ':
-                self.toggle()
-            elif key in ('i', 'a'):
-                self.insert()
-            elif key == 'q':
-                sys.exit(0)
-        elif self.mode == 'insert':
-            if key == 'j':
-                next_key = self.maingrid.getkey()
-                if next_key == 'k':
-                    self.escape()
-                else:
-                    self.type('j')
-                    self.handle(next_key)
-            elif key in LETTERS:
-                self.type(key)
-            elif key == '\x7f':
-                self.backspace()
+        # Keys that work in all modes
+        if key == '?':
+            self.reveal()
+        else:
+            # Keys specific to normal mode
+            if self.mode == 'normal':
+                if key == 'k':
+                    self.move(0, -1)
+                elif key == 'j':
+                    self.move(0, 1)
+                elif key == 'h':
+                    self.move(-1, 0)
+                elif key == 'l':
+                    self.move(1, 0)
+                elif key == '0':
+                    self.start()
+                elif key == '$':
+                    self.end()
+                elif key == 'w':
+                    self.next()
+                elif key == 'b':
+                    self.prev()
+                elif key == 'x':
+                    self.delete()
+                elif key == ' ':
+                    self.toggle()
+                elif key in ('i', 'a'):
+                    self.insert()
+                elif key == 'q':
+                    sys.exit(0)
+            # Keys specific to insert mode
             else:
-                self.escape()
+                if key == 'j':
+                    next_key = self.maingrid.getkey()
+                    if next_key == 'k':
+                        self.escape()
+                    else:
+                        self.type('j')
+                        self.handle(next_key)
+                elif key in LETTERS:
+                    self.type(key)
+                elif key == '\x7f':
+                    self.backspace()
+                else:
+                    self.escape()
 
     @property
     def current_coords(self):
@@ -279,6 +285,10 @@ class Puzzle:
 
     def type(self, letter):
         self.set(letter.upper())
+        self.advance()
+
+    def reveal(self):
+        self.set(self.answers[self.y][self.x])
         self.advance()
 
     def backspace(self):
