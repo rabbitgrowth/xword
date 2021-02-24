@@ -122,12 +122,14 @@ class Puzzle:
 
         for y, row in enumerate(self.buffer):
             pairs = list(enumerate(row))
+
             for x, square in pairs:
                 number = self.numbers.get((x, y))
                 vertex = '.' if y == 0 else ('.' if x == 0 else '+')
                 edge   = '---' if number is None else f'{number:-<3}'
                 self.main_grid.addstr(vertex + edge)
             self.main_grid.addstr('.')
+
             for x, square in pairs:
                 if square == BLACK:
                     fill = '///'
@@ -142,6 +144,7 @@ class Puzzle:
                     fill = left + middle + right
                 self.main_grid.addstr('|' + fill)
             self.main_grid.addstr('|')
+
         self.main_grid.addstr("'---" * self.width + "'")
 
         self.main_grid.refresh()
@@ -154,20 +157,23 @@ class Puzzle:
 
             lines   = []
             heights = []
+            active_clue = self.clue_by_coords[direction][self.current_coords]
+
             for index, clue in enumerate(self.clues[direction]):
-                active = self.clue_by_coords[direction][self.current_coords] is clue
+                active = clue is active_clue
                 render = clue.render(active)
                 lines.extend(render)
                 heights.append(len(render))
                 if active:
                     active_index = index
+
             if sum(heights[active_index:]) > nrows: # >= also works
                 start   = sum(heights[:active_index])
                 section = slice(start, start + nrows)
             else:
                 section = slice(-nrows, None)
-            clue_grid.addstr('\n'.join(lines[section]))
 
+            clue_grid.addstr('\n'.join(lines[section]))
             clue_grid.refresh()
 
     def handle(self, key):
