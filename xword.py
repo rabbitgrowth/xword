@@ -115,8 +115,7 @@ class Puzzle:
                     clue_grid.erase()
                     clue_grid.addstr(0, 0, '\n'.join(self.render_clues(direction, nrows - 1)))
                     clue_grid.refresh()
-                key = self.main_grid.getkey()
-                self.handle(key)
+                self.handle(stdscr.getkey())
 
         curses.wrapper(main)
 
