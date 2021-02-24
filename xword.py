@@ -103,18 +103,20 @@ class Puzzle:
         def main(stdscr):
             # Make cursor invisible
             curses.curs_set(0)
-            # As a bit of an ugly hack, add an extra line at the bottom
-            # to get around the curses quirk of not allowing writing at
-            # the bottom right corner
+            # Compute size of puzzle grid
+            nrows = self.height * 2 + 1 # or, in curses lingo, `nlines`
+            ncols = self.width  * 4 + 1
+            # Draw static stuff
             stdscr.addstr(0, 0, self.title)
             stdscr.addstr(1, 0, self.author)
-            nrows = self.height * 2 + 1 # called `nlines` in curses
-            ncols = self.width  * 4 + 1
-            self.main_grid = curses.newwin(nrows + 1, ncols, 3, 0)
-            self.mode_line = curses.newwin(1, ncols, nrows + 4, 0)
             stdscr.addstr(3, ncols + 2,  'Across')
             stdscr.addstr(3, ncols + 36, 'Down')
             stdscr.refresh()
+            # As a bit of an ugly hack to get around the curses quirk of not
+            # allowing writing at the bottom right corner, add an extra line
+            # at the bottom of windows that can be filled to the brim
+            self.main_grid = curses.newwin(nrows + 1, ncols, 3, 0)
+            self.mode_line = curses.newwin(1, ncols, nrows + 4, 0)
             self.clue_grids = {'across': curses.newwin(nrows, 33, 4, ncols + 2),
                                'down':   curses.newwin(nrows, 33, 4, ncols + 36)}
             while True:
