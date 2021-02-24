@@ -103,14 +103,17 @@ class Puzzle:
             ncols = self.width  * 4 + 1
             self.main_grid = curses.newwin(nrows + 1, ncols, 0, 0)
             self.mode_line = curses.newwin(1, ncols, nrows + 1, 0)
-            self.clue_grids = {'across': curses.newwin(nrows + 1, 33, 0, ncols + 2),
-                               'down':   curses.newwin(nrows + 1, 33, 0, ncols + 36)}
+            stdscr.addstr(0, ncols + 2,  'Across')
+            stdscr.addstr(0, ncols + 36, 'Down')
+            stdscr.refresh()
+            self.clue_grids = {'across': curses.newwin(nrows, 33, 1, ncols + 2),
+                               'down':   curses.newwin(nrows, 33, 1, ncols + 36)}
             while True:
                 self.main_grid.addstr(0, 0, ''.join(self.render()))
                 self.main_grid.refresh()
                 for direction, clue_grid in self.clue_grids.items():
                     clue_grid.erase()
-                    clue_grid.addstr(0, 0, '\n'.join(self.render_clues(direction, nrows)))
+                    clue_grid.addstr(0, 0, '\n'.join(self.render_clues(direction, nrows - 1)))
                     clue_grid.refresh()
                 key = self.main_grid.getkey()
                 self.handle(key)
@@ -148,22 +151,21 @@ class Puzzle:
         yield "'"
 
     def render_clues(self, direction, nrows):
-        title   = [direction.title()] # fixed title line
-        scroll  = []                  # scrollable clues
-        heights = []                  # visual height of each clue
+        lines   = []
+        heights = []
         for index, clue in enumerate(self.clues[direction]):
             active = self.clue_by_coords[direction][self.current_coords] is clue
             render = clue.render(active)
-            scroll.extend(render)
+            lines.extend(render)
             heights.append(len(render))
             if active:
                 active_index = index
-        if sum(heights[active_index:]) > nrows - 1: # >= also works
-            start  = sum(heights[:active_index])
-            window = slice(start, start + nrows - 1)
+        if sum(heights[active_index:]) > nrows: # >= also works
+            start   = sum(heights[:active_index])
+            section = slice(start, start + nrows)
         else:
-            window = slice(-nrows + 1, None)
-        return title + scroll[window]
+            section = slice(-nrows, None)
+        return lines[section]
 
     def handle(self, key):
         # Keys that work in all modes
