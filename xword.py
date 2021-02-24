@@ -21,12 +21,19 @@ WRAPPER = TextWrapper(width             = 32,
                       subsequent_indent = ' '*4)
 
 class Puzzle:
-    def __init__(self, answers, buffer, cluelist):
+    def __init__(self,
+                 answers, buffer, cluelist,
+                 title, author, copyright, notes):
         self.answers = answers
         self.buffer  = buffer
 
         self.width  = len(answers[0])
         self.height = len(answers)
+
+        self.title     = title
+        self.author    = author
+        self.copyright = copyright
+        self.notes     = notes
 
         # Map coords that start clues (across or down)
         # to lists of coords the clues span
@@ -99,15 +106,17 @@ class Puzzle:
             # As a bit of an ugly hack, add an extra line at the bottom
             # to get around the curses quirk of not allowing writing at
             # the bottom right corner
+            stdscr.addstr(0, 0, self.title)
+            stdscr.addstr(1, 0, self.author)
             nrows = self.height * 2 + 1 # called `nlines` in curses
             ncols = self.width  * 4 + 1
-            self.main_grid = curses.newwin(nrows + 1, ncols, 0, 0)
-            self.mode_line = curses.newwin(1, ncols, nrows + 1, 0)
-            stdscr.addstr(0, ncols + 2,  'Across')
-            stdscr.addstr(0, ncols + 36, 'Down')
+            self.main_grid = curses.newwin(nrows + 1, ncols, 3, 0)
+            self.mode_line = curses.newwin(1, ncols, nrows + 4, 0)
+            stdscr.addstr(3, ncols + 2,  'Across')
+            stdscr.addstr(3, ncols + 36, 'Down')
             stdscr.refresh()
-            self.clue_grids = {'across': curses.newwin(nrows, 33, 1, ncols + 2),
-                               'down':   curses.newwin(nrows, 33, 1, ncols + 36)}
+            self.clue_grids = {'across': curses.newwin(nrows, 33, 4, ncols + 2),
+                               'down':   curses.newwin(nrows, 33, 4, ncols + 36)}
             while True:
                 self.render_main_grid()
                 self.render_clue_grids()
@@ -379,9 +388,9 @@ def parse(filename):
         answers, buffer = ([list(f.read(width).decode(ENCODING)) for _ in range(height)]
                            for _ in range(2))
         strings = f.read().decode(ENCODING).removesuffix('\0').split('\0')
-        cluelist = strings[3:-1]
+        title, author, copyright, *cluelist, notes = strings
         assert len(cluelist) == nclues, f'Expected {nclues} clues, got {len(cluelist)}'
-        return Puzzle(answers, buffer, cluelist)
+        return Puzzle(answers, buffer, cluelist, title, author, copyright, notes)
 
 if __name__ == '__main__':
     puzzle = parse(sys.argv[1])
