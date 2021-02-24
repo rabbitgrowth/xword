@@ -109,17 +109,15 @@ class Puzzle:
             self.clue_grids = {'across': curses.newwin(nrows, 33, 1, ncols + 2),
                                'down':   curses.newwin(nrows, 33, 1, ncols + 36)}
             while True:
-                self.main_grid.addstr(0, 0, ''.join(self.render()))
-                self.main_grid.refresh()
-                for direction, clue_grid in self.clue_grids.items():
-                    clue_grid.erase()
-                    clue_grid.addstr(0, 0, '\n'.join(self.render_clues(direction, nrows - 1)))
-                    clue_grid.refresh()
+                self.render_main_grid()
+                self.render_clue_grids()
                 self.handle(stdscr.getkey())
 
         curses.wrapper(main)
 
-    def render(self):
+    def render_main_grid(self):
+        self.main_grid.erase()
+
         span = set(self.current_clue.span)
 
         for y, row in enumerate(self.buffer):
@@ -128,9 +126,8 @@ class Puzzle:
                 number = self.numbers.get((x, y))
                 vertex = '.' if y == 0 else ('.' if x == 0 else '+')
                 edge   = '---' if number is None else f'{number:-<3}'
-                yield vertex
-                yield edge
-            yield '.'
+                self.main_grid.addstr(vertex + edge)
+            self.main_grid.addstr('.')
             for x, square in pairs:
                 if square == BLACK:
                     fill = '///'
@@ -143,28 +140,35 @@ class Puzzle:
                         left, right = '  '
                     middle = ' ' if square == EMPTY else square
                     fill = left + middle + right
-                yield '|'
-                yield fill
-            yield '|'
-        yield "'---" * self.width
-        yield "'"
+                self.main_grid.addstr('|' + fill)
+            self.main_grid.addstr('|')
+        self.main_grid.addstr("'---" * self.width + "'")
 
-    def render_clues(self, direction, nrows):
-        lines   = []
-        heights = []
-        for index, clue in enumerate(self.clues[direction]):
-            active = self.clue_by_coords[direction][self.current_coords] is clue
-            render = clue.render(active)
-            lines.extend(render)
-            heights.append(len(render))
-            if active:
-                active_index = index
-        if sum(heights[active_index:]) > nrows: # >= also works
-            start   = sum(heights[:active_index])
-            section = slice(start, start + nrows)
-        else:
-            section = slice(-nrows, None)
-        return lines[section]
+        self.main_grid.refresh()
+
+    def render_clue_grids(self):
+        nrows = self.height * 2
+
+        for direction, clue_grid in self.clue_grids.items():
+            clue_grid.erase()
+
+            lines   = []
+            heights = []
+            for index, clue in enumerate(self.clues[direction]):
+                active = self.clue_by_coords[direction][self.current_coords] is clue
+                render = clue.render(active)
+                lines.extend(render)
+                heights.append(len(render))
+                if active:
+                    active_index = index
+            if sum(heights[active_index:]) > nrows: # >= also works
+                start   = sum(heights[:active_index])
+                section = slice(start, start + nrows)
+            else:
+                section = slice(-nrows, None)
+            clue_grid.addstr('\n'.join(lines[section]))
+
+            clue_grid.refresh()
 
     def handle(self, key):
         # Keys that work in all modes
