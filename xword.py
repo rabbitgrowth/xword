@@ -218,6 +218,10 @@ class Puzzle:
                     self.toggle()
                 elif key in ('i', 'a'):
                     self.insert()
+                elif key == ']':
+                    self.next_empty()
+                elif key == '[':
+                    self.prev_empty()
                 elif key == 'q':
                     sys.exit(0)
             # Keys specific to insert mode
@@ -367,6 +371,18 @@ class Puzzle:
             self.end()
         else:
             self.jump(*prev_coords)
+
+    def next_empty(self):
+        while True:
+            self.advance()
+            if self.get() == EMPTY:
+                break
+
+    def prev_empty(self):
+        while True:
+            self.retreat()
+            if self.get() == EMPTY:
+                break
 
 class Clue:
     def __init__(self, number, span, text):
