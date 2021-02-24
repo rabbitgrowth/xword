@@ -108,8 +108,7 @@ class Puzzle:
             while True:
                 self.main_grid.addstr(0, 0, ''.join(self.render()))
                 self.main_grid.refresh()
-                for direction in DIRECTIONS:
-                    clue_grid = self.clue_grids[direction]
+                for direction, clue_grid in self.clue_grids.items():
                     clue_grid.erase()
                     clue_grid.addstr(0, 0, '\n'.join(self.render_clues(direction, nrows)))
                     clue_grid.refresh()
