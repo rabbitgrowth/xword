@@ -5,6 +5,7 @@ import sys
 from collections import defaultdict
 from itertools   import groupby
 from string      import ascii_lowercase
+from textwrap    import TextWrapper
 
 ENCODING = 'iso-8859-1' # used by the .puz format
 
@@ -14,6 +15,10 @@ EMPTY = '-'
 DIRECTIONS = ('across', 'down')
 
 LETTERS = set(ascii_lowercase)
+
+WRAPPER = TextWrapper(width             = 32,
+                      initial_indent    = ' '*4,
+                      subsequent_indent = ' '*4)
 
 class Puzzle:
     def __init__(self, answers, buffer, cluelist):
@@ -94,18 +99,23 @@ class Puzzle:
             # As a bit of an ugly hack, add an extra line at the bottom
             # to get around the curses quirk of not allowing writing at
             # the bottom right corner
-            self.maingrid = curses.newwin(self.height * 2 + 2, # nlines (with one extra)
-                                          self.width  * 4 + 1, # ncols
-                                          0,                   # begin_y
-                                          0)                   # begin_x
-            self.modeline = curses.newwin(1,
-                                          self.width  * 4 + 1,
-                                          self.height * 2 + 2,
-                                          0)
+            nrows = self.height * 2 + 1 # called `nlines` in curses
+            ncols = self.width  * 4 + 1
+            self.main_grid = curses.newwin(nrows + 1, ncols, 0, 0)
+            self.mode_line = curses.newwin(1, ncols, nrows + 1, 0)
+            stdscr.addstr(0, ncols + 2,  'Across')
+            stdscr.addstr(0, ncols + 36, 'Down')
+            stdscr.refresh()
+            self.clue_grids = {'across': curses.newwin(nrows, 33, 1, ncols + 2),
+                               'down':   curses.newwin(nrows, 33, 1, ncols + 36)}
             while True:
-                self.maingrid.addstr(0, 0, ''.join(self.render()))
-                self.maingrid.refresh()
-                key = self.maingrid.getkey()
+                self.main_grid.addstr(0, 0, ''.join(self.render()))
+                self.main_grid.refresh()
+                for direction, clue_grid in self.clue_grids.items():
+                    clue_grid.erase()
+                    clue_grid.addstr(0, 0, '\n'.join(self.render_clues(direction, nrows - 1)))
+                    clue_grid.refresh()
+                key = self.main_grid.getkey()
                 self.handle(key)
 
         curses.wrapper(main)
@@ -139,6 +149,23 @@ class Puzzle:
             yield '|'
         yield "'---" * self.width
         yield "'"
+
+    def render_clues(self, direction, nrows):
+        lines   = []
+        heights = []
+        for index, clue in enumerate(self.clues[direction]):
+            active = self.clue_by_coords[direction][self.current_coords] is clue
+            render = clue.render(active)
+            lines.extend(render)
+            heights.append(len(render))
+            if active:
+                active_index = index
+        if sum(heights[active_index:]) > nrows: # >= also works
+            start   = sum(heights[:active_index])
+            section = slice(start, start + nrows)
+        else:
+            section = slice(-nrows, None)
+        return lines[section]
 
     def handle(self, key):
         # Keys that work in all modes
@@ -176,7 +203,7 @@ class Puzzle:
             # Keys specific to insert mode
             else:
                 if key == 'j':
-                    next_key = self.maingrid.getkey()
+                    next_key = self.main_grid.getkey()
                     if next_key == 'k':
                         self.escape()
                     else:
@@ -277,13 +304,13 @@ class Puzzle:
 
     def insert(self):
         self.mode = 'insert'
-        self.modeline.addstr('-- INSERT --')
-        self.modeline.refresh()
+        self.mode_line.addstr('-- INSERT --')
+        self.mode_line.refresh()
 
     def escape(self):
         self.mode = 'normal'
-        self.modeline.erase()
-        self.modeline.refresh()
+        self.mode_line.erase()
+        self.mode_line.refresh()
 
     def type(self, letter):
         self.set(letter.upper())
@@ -328,6 +355,12 @@ class Clue:
         self.text   = text
         self.prev   = None
         self.next   = None
+
+    def render(self, active):
+        lines    = WRAPPER.wrap(self.text)
+        star     = '*' if active else ' '
+        lines[0] = f'{star}{self.number:>2} ' + lines[0][4:]
+        return lines
 
 def parse(filename):
     with open(filename, 'rb') as f:
