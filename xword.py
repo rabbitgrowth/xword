@@ -390,7 +390,11 @@ def parse(filename):
         answers, buffer = ([list(f.read(width).decode(ENCODING)) for _ in range(height)]
                            for _ in range(2))
         strings = f.read().decode(ENCODING).removesuffix('\0').split('\0')
-        title, author, copyright, *cluelist, notes = strings
+        title     = strings[0]
+        author    = strings[1]
+        copyright = strings[2]
+        cluelist  = strings[3:3+nclues]
+        notes     = strings[3+nclues:]
         assert len(cluelist) == nclues, f'Expected {nclues} clues, got {len(cluelist)}'
         return Puzzle(answers, buffer, cluelist, title, author, copyright, notes)
 
