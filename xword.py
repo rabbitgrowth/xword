@@ -212,6 +212,8 @@ class Puzzle:
                     self.next()
                 elif key == 'b':
                     self.prev()
+                elif key == 'r':
+                    self.replace()
                 elif key == 'x':
                     self.delete()
                 elif key == ' ':
@@ -226,19 +228,21 @@ class Puzzle:
                     sys.exit(0)
             # Keys specific to insert mode
             else:
-                if key == 'j':
+                if key == '\x1b':
+                    self.escape()
+                elif key == 'j':
                     next_key = self.main_grid.getkey()
                     if next_key == 'k':
                         self.escape()
                     else:
                         self.type('j')
+                        self.advance()
                         self.handle(next_key)
-                elif key in LETTERS:
-                    self.type(key)
                 elif key == '\x7f':
                     self.backspace()
                 else:
-                    self.escape()
+                    self.type(key)
+                    self.advance()
 
     @property
     def current_coords(self):
@@ -311,6 +315,10 @@ class Puzzle:
             self.jump(*self.clues[self.other_direction(self.direction)][-1].span[0])
             self.toggle()
 
+    def replace(self):
+        key = self.main_grid.getkey()
+        self.type(key)
+
     def delete(self, x=None, y=None):
         if x is None:
             x = self.x
@@ -336,9 +344,9 @@ class Puzzle:
         self.mode_line.erase()
         self.mode_line.refresh()
 
-    def type(self, letter):
-        self.set(letter.upper())
-        self.advance()
+    def type(self, key):
+        if key in LETTERS:
+            self.set(key.upper())
 
     def reveal(self):
         self.set(self.answers[self.y][self.x])
