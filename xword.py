@@ -326,10 +326,10 @@ class Puzzle:
                     self.toggle()
                 elif key in ('i', 'a'):
                     self.insert()
-                elif key == ']':
-                    self.next_empty()
-                elif key == '[':
-                    self.prev_empty()
+                elif key == '}':
+                    self.next_empty(True)
+                elif key == '{':
+                    self.next_empty(False)
                 elif key == ':':
                     self.type_command()
             # Keys specific to insert mode
@@ -484,15 +484,16 @@ class Puzzle:
         else:
             self.jump(*prev_coords)
 
-    def next_empty(self):
-        while True:
-            self.advance()
-            if self.get() == EMPTY:
-                break
+    def next_empty(self, forward):
+        move = self.advance if forward else self.retreat
 
-    def prev_empty(self):
+        if self.get() == EMPTY:
+            while True:
+                move()
+                if self.get() != EMPTY:
+                    break
         while True:
-            self.retreat()
+            move()
             if self.get() == EMPTY:
                 break
 
