@@ -72,13 +72,13 @@ SHADE = '░'
 
 class Puzzle:
     def __init__(self,
-                 answers, buffer, cluelist,
+                 answer, buffer, cluelist,
                  title, author, copyright, notes):
-        self.answers = answers
-        self.buffer  = buffer
+        self.answer = answer
+        self.buffer = buffer
 
-        self.width  = len(answers[0])
-        self.height = len(answers)
+        self.width  = len(answer[0])
+        self.height = len(answer)
 
         self.title     = title
         self.author    = author
@@ -151,7 +151,7 @@ class Puzzle:
         os.environ.setdefault('ESCDELAY', '0')
 
         def main(stdscr):
-            # Make cursor invisible
+            # Hide cursor
             curses.curs_set(0)
             # Compute size of puzzle grid
             nrows = self.height * 2 + 1 # or, in curses lingo, `nlines`
@@ -165,10 +165,10 @@ class Puzzle:
             # As a bit of an ugly hack to get around the curses quirk of not
             # allowing writing at the bottom right corner, add an extra line
             # at the bottom of windows that can be filled to the brim
-            self.main_grid = curses.newwin(nrows + 1, ncols, 3, 0)
-            self.mode_line = curses.newwin(1, ncols, nrows + 4, 0)
-            self.clue_grids = {'across': curses.newwin(nrows, 33, 4, ncols + 2),
-                               'down':   curses.newwin(nrows, 33, 4, ncols + 36)}
+            self.main_grid   = curses.newwin(nrows + 1, ncols, 3, 0)
+            self.status_line = curses.newwin(1, ncols, nrows + 4, 0)
+            self.clue_grids  = {'across': curses.newwin(nrows, 33, 4, ncols + 2),
+                                'down':   curses.newwin(nrows, 33, 4, ncols + 36)}
             while True:
                 self.render_main_grid()
                 self.render_clue_grids()
@@ -330,8 +330,8 @@ class Puzzle:
                     self.next_empty()
                 elif key == '[':
                     self.prev_empty()
-                elif key == 'q':
-                    sys.exit(0)
+                elif key == ':':
+                    self.type_command()
             # Keys specific to insert mode
             else:
                 if key == '\x1b':
@@ -442,20 +442,18 @@ class Puzzle:
 
     def insert(self):
         self.mode = 'insert'
-        self.mode_line.addstr('-- INSERT --')
-        self.mode_line.refresh()
+        self.show_message('-- INSERT --')
 
     def escape(self):
         self.mode = 'normal'
-        self.mode_line.erase()
-        self.mode_line.refresh()
+        self.show_message('')
 
     def type(self, key):
         if key in LETTERS:
             self.set(key.upper())
 
     def reveal(self):
-        self.set(self.answers[self.y][self.x])
+        self.set(self.answer[self.y][self.x])
         self.advance()
 
     def backspace(self):
@@ -498,6 +496,49 @@ class Puzzle:
             if self.get() == EMPTY:
                 break
 
+    def type_command(self):
+        curses.echo()      # show characters typed
+        curses.curs_set(1) # show cursor
+
+        self.status_line.erase()
+        self.status_line.addstr(':')
+        command = self.status_line.getstr(0, 1)
+        self.execute_command(command)
+
+        curses.noecho()
+        curses.curs_set(0)
+
+    def execute_command(self, command):
+        command = command.strip().decode()
+
+        if command in ('q', 'quit'):
+            self.quit()
+        elif command in ('c', 'check'):
+            self.check()
+        elif command: # not entirely whitespace
+            self.show_message(f'Unknown command "{command}"')
+
+    def show_message(self, message):
+        self.status_line.erase()
+        self.status_line.addstr(message)
+        self.status_line.refresh()
+
+    def check(self):
+        if self.buffer == self.answer:
+            self.show_message("Congrats! You've finished the puzzle.")
+        else:
+            wrong = any(buffer != answer
+                        for buffer_row, answer_row in zip(self.buffer, self.answer)
+                        for buffer, answer in zip(buffer_row, answer_row)
+                        if buffer != EMPTY)
+            if wrong:
+                self.show_message("At least one square's amiss.")
+            else:
+                self.show_message("You're doing fine.")
+
+    def quit(self):
+        sys.exit()
+
 class Clue:
     def __init__(self, number, span, text):
         self.number = number
@@ -517,8 +558,8 @@ def parse(filename):
         f.seek(0x2c) # skip checksums, file magic, etc. for now
         width, height, nclues = struct.unpack('<BBH', f.read(4))
         f.seek(4, 1) # skip unknown bitmask and scrambled tag
-        answers, buffer = ([list(f.read(width).decode(ENCODING)) for _ in range(height)]
-                           for _ in range(2))
+        answer, buffer = ([list(f.read(width).decode(ENCODING)) for _ in range(height)]
+                          for _ in range(2))
         strings = f.read().decode(ENCODING).removesuffix('\0').split('\0')
         title     = strings[0]
         author    = strings[1]
@@ -526,7 +567,7 @@ def parse(filename):
         cluelist  = strings[3:3+nclues]
         notes     = strings[3+nclues:]
         assert len(cluelist) == nclues, f'Expected {nclues} clues, got {len(cluelist)}'
-        return Puzzle(answers, buffer, cluelist, title, author, copyright, notes)
+        return Puzzle(answer, buffer, cluelist, title, author, copyright, notes)
 
 if __name__ == '__main__':
     puzzle = parse(sys.argv[1])
