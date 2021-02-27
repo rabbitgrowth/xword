@@ -216,10 +216,8 @@ class Puzzle:
                 row.append(vertex)
             vertices.append(row)
 
-        for y, row in enumerate(self.buffer):
-            pairs = list(enumerate(row))
-
-            for x, square in pairs:
+        for y in range(self.height):
+            for x in range(self.width):
                 vertex = vertices[y][x]
                 self.main_grid.addstr(vertex)
 
@@ -234,11 +232,12 @@ class Puzzle:
 
             self.main_grid.addstr(vertices[y][x + 1])
 
-            for x, square in pairs:
+            for x in range(self.width):
                 bold = boldnesses.get((x, y)) in ('topleft', 'topright', 'vertical')
                 edge = EDGES['vertical'][bold]
                 self.main_grid.addstr(edge)
 
+                square = self.buffer[y][x]
                 if square == BLACK:
                     self.main_grid.addstr(SHADE * 3)
                 else:
