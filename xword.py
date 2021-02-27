@@ -32,36 +32,36 @@ SHAPES = {'head': {'head': 'topleft',
                    'tail': 'bottomright'}}
 
 #           shape          boldness
-VERTICES = {'topleft':     {'light':       '┌',
+VERTICES = {'topleft':     {'normal':      '┌',
                             'topleft':     '┏'},
-            'top':         {'light':       '┬',
+            'top':         {'normal':      '┬',
                             'topleft':     '┲',
                             'topright':    '┱',
                             'horizontal':  '┯'},
-            'topright':    {'light':       '┐',
+            'topright':    {'normal':      '┐',
                             'topright':    '┓'},
-            'left':        {'light':       '├',
+            'left':        {'normal':      '├',
                             'topleft':     '┢',
                             'bottomleft':  '┡',
                             'vertical':    '┠'},
-            'middle':      {'light':       '┼',
+            'middle':      {'normal':      '┼',
                             'topleft':     '╆',
                             'topright':    '╅',
                             'bottomleft':  '╄',
                             'bottomright': '╃',
                             'horizontal':  '┿',
                             'vertical':    '╂'},
-            'right':       {'light':       '┤',
+            'right':       {'normal':      '┤',
                             'topright':    '┪',
                             'bottomright': '┩',
                             'vertical':    '┨'},
-            'bottomleft':  {'light':       '└',
+            'bottomleft':  {'normal':      '└',
                             'bottomleft':  '┗'},
-            'bottom':      {'light':       '┴',
+            'bottom':      {'normal':      '┴',
                             'bottomleft':  '┺',
                             'bottomright': '┹',
                             'horizontal':  '┷'},
-            'bottomright': {'light':       '┘',
+            'bottomright': {'normal':      '┘',
                             'bottomright': '┛'}}
 
 #        direction      bold?
@@ -211,7 +211,7 @@ class Puzzle:
                 xpos     = {0: 'head', self.width:  'tail'}.get(x, 'body')
                 ypos     = {0: 'head', self.height: 'tail'}.get(y, 'body')
                 shape    = SHAPES[xpos][ypos]
-                boldness = boldnesses.get((x, y), 'light')
+                boldness = boldnesses.get((x, y), 'normal')
                 vertex   = VERTICES[shape][boldness]
                 row.append(vertex)
             vertices.append(row)
