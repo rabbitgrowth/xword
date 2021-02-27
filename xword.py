@@ -64,11 +64,9 @@ VERTICES = {'topleft':     {'normal':      '┌',
             'bottomright': {'normal':      '┘',
                             'bottomright': '┛'}}
 
-#        direction      bold?
-EDGES = {'horizontal': {False: '─',
-                        True:  '━'},
-         'vertical':   {False: '│',
-                        True:  '┃'}}
+#        direction     bold?
+EDGES = {'horizontal': '─━',
+         'vertical':   '│┃'}
 
 SHADE = '░'
 
