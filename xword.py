@@ -159,10 +159,10 @@ class Puzzle:
             nrows = self.height * 2 + 1 # or, in curses lingo, `nlines`
             ncols = self.width  * 4 + 1
             # Draw static stuff
-            stdscr.addstr(0, 0, self.title)
+            stdscr.addstr(0, 0, self.title, curses.A_BOLD)
             stdscr.addstr(1, 0, self.author)
-            stdscr.addstr(3, ncols + 2,  'Across')
-            stdscr.addstr(3, ncols + 36, 'Down')
+            stdscr.addstr(3, ncols + 2,  'Across', curses.A_BOLD)
+            stdscr.addstr(3, ncols + 36, 'Down',   curses.A_BOLD)
             stdscr.refresh()
             # As a bit of an ugly hack to get around the curses quirk of not
             # allowing writing at the bottom right corner, add an extra line
@@ -221,27 +221,33 @@ class Puzzle:
 
             for x, square in pairs:
                 vertex = vertices[y][x]
-                number = self.numbers.get((x, y))
-                number = '' if number is None else str(number)
-                bold   = boldnesses.get((x, y)) in ('topleft', 'bottomleft', 'horizontal')
-                edge   = EDGES['horizontal'][bold]
-                padded = number.ljust(3, edge)
-                self.main_grid.addstr(vertex + padded)
+                self.main_grid.addstr(vertex)
+
+                number    = self.numbers.get((x, y))
+                attribute = curses.A_BOLD if number == self.current_clue.number else curses.A_NORMAL
+                number    = '' if number is None else str(number)
+                self.main_grid.addstr(number, attribute)
+
+                bold = boldnesses.get((x, y)) in ('topleft', 'bottomleft', 'horizontal')
+                edge = EDGES['horizontal'][bold] * (3 - len(number))
+                self.main_grid.addstr(edge)
 
             self.main_grid.addstr(vertices[y][x + 1])
 
             for x, square in pairs:
-                if square == BLACK:
-                    fill = SHADE * 3
-                else:
-                    left   = '>' if (x, y) == self.current_coords else ' '
-                    middle = ' ' if square == EMPTY else square
-                    right  = ' ' # could be used to indicate status;
-                                 # hard-code to be blank for now
-                    fill   = left + middle + right
                 bold = boldnesses.get((x, y)) in ('topleft', 'topright', 'vertical')
                 edge = EDGES['vertical'][bold]
-                self.main_grid.addstr(edge + fill)
+                self.main_grid.addstr(edge)
+
+                if square == BLACK:
+                    self.main_grid.addstr(SHADE * 3)
+                else:
+                    cursor = '>' if (x, y) == self.current_coords else ' '
+                    self.main_grid.addstr(cursor, curses.A_BOLD)
+
+                    letter = ' ' if square == EMPTY else square
+                    status = ' ' # hard-code to be blank for now
+                    self.main_grid.addstr(letter + status)
 
             bold = boldnesses.get((x + 1, y)) in ('topright', 'vertical')
             edge = EDGES['vertical'][bold]
@@ -267,12 +273,14 @@ class Puzzle:
 
             lines   = []
             heights = []
+
             active_clue = self.clue_by_coords[direction][self.current_coords]
 
             for index, clue in enumerate(self.clues[direction]):
-                active = clue is active_clue
-                render = clue.render(active)
-                lines.extend(render)
+                active    = clue is active_clue
+                render    = clue.render(active)
+                attribute = curses.A_BOLD if clue is self.current_clue else curses.A_NORMAL
+                lines.extend((line, attribute) for line in render)
                 heights.append(len(render))
                 if active:
                     active_index = index
@@ -283,7 +291,9 @@ class Puzzle:
             else:
                 section = slice(-nrows, None)
 
-            clue_grid.addstr('\n'.join(lines[section]))
+            for line, attribute in lines[section]:
+                clue_grid.addstr(line + '\n', attribute)
+
             clue_grid.refresh()
 
     def handle(self, key):
