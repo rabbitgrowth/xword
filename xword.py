@@ -20,6 +20,56 @@ WRAPPER = TextWrapper(width             = 32,
                       initial_indent    = ' '*4,
                       subsequent_indent = ' '*4)
 
+#         xpos     ypos    shape
+SHAPES = {'head': {'head': 'topleft',
+                   'body': 'left',
+                   'tail': 'bottomleft'},
+          'body': {'head': 'top',
+                   'body': 'middle',
+                   'tail': 'bottom'},
+          'tail': {'head': 'topright',
+                   'body': 'right',
+                   'tail': 'bottomright'}}
+
+#           shape          boldness
+VERTICES = {'topleft':     {'normal':      '┌',
+                            'topleft':     '┏'},
+            'top':         {'normal':      '┬',
+                            'topleft':     '┲',
+                            'topright':    '┱',
+                            'horizontal':  '┯'},
+            'topright':    {'normal':      '┐',
+                            'topright':    '┓'},
+            'left':        {'normal':      '├',
+                            'topleft':     '┢',
+                            'bottomleft':  '┡',
+                            'vertical':    '┠'},
+            'middle':      {'normal':      '┼',
+                            'topleft':     '╆',
+                            'topright':    '╅',
+                            'bottomleft':  '╄',
+                            'bottomright': '╃',
+                            'horizontal':  '┿',
+                            'vertical':    '╂'},
+            'right':       {'normal':      '┤',
+                            'topright':    '┪',
+                            'bottomright': '┩',
+                            'vertical':    '┨'},
+            'bottomleft':  {'normal':      '└',
+                            'bottomleft':  '┗'},
+            'bottom':      {'normal':      '┴',
+                            'bottomleft':  '┺',
+                            'bottomright': '┹',
+                            'horizontal':  '┷'},
+            'bottomright': {'normal':      '┘',
+                            'bottomright': '┛'}}
+
+#        direction     bold?
+EDGES = {'horizontal': '─━',
+         'vertical':   '│┃'}
+
+SHADE = '░'
+
 class Puzzle:
     def __init__(self,
                  answers, buffer, cluelist,
@@ -107,10 +157,10 @@ class Puzzle:
             nrows = self.height * 2 + 1 # or, in curses lingo, `nlines`
             ncols = self.width  * 4 + 1
             # Draw static stuff
-            stdscr.addstr(0, 0, self.title)
+            stdscr.addstr(0, 0, self.title, curses.A_BOLD)
             stdscr.addstr(1, 0, self.author)
-            stdscr.addstr(3, ncols + 2,  'Across')
-            stdscr.addstr(3, ncols + 36, 'Down')
+            stdscr.addstr(3, ncols + 2,  'Across', curses.A_BOLD)
+            stdscr.addstr(3, ncols + 36, 'Down',   curses.A_BOLD)
             stdscr.refresh()
             # As a bit of an ugly hack to get around the curses quirk of not
             # allowing writing at the bottom right corner, add an extra line
@@ -129,34 +179,86 @@ class Puzzle:
     def render_main_grid(self):
         self.main_grid.erase()
 
-        span = set(self.current_clue.span)
+        span       = self.current_clue.span
+        boldnesses = {}
+        if self.direction == 'across':
+            x, y = span[0]
+            boldnesses[(x, y    )] = 'topleft'
+            boldnesses[(x, y + 1)] = 'bottomleft'
+            for x, y in span[1:]:
+                boldnesses[(x, y    )] = 'horizontal'
+                boldnesses[(x, y + 1)] = 'horizontal'
+            x, y = span[-1]
+            boldnesses[(x + 1, y    )] = 'topright'
+            boldnesses[(x + 1, y + 1)] = 'bottomright'
+        else:
+            x, y = span[0]
+            boldnesses[(x,     y)] = 'topleft'
+            boldnesses[(x + 1, y)] = 'topright'
+            for x, y in span[1:]:
+                boldnesses[(x,     y)] = 'vertical'
+                boldnesses[(x + 1, y)] = 'vertical'
+            x, y = span[-1]
+            boldnesses[(x,     y + 1)] = 'bottomleft'
+            boldnesses[(x + 1, y + 1)] = 'bottomright'
 
-        for y, row in enumerate(self.buffer):
-            pairs = list(enumerate(row))
+        vertices = []
+        for y in range(self.height + 1):
+            row = []
+            for x in range(self.width + 1):
+                xpos     = {0: 'head', self.width:  'tail'}.get(x, 'body')
+                ypos     = {0: 'head', self.height: 'tail'}.get(y, 'body')
+                shape    = SHAPES[xpos][ypos]
+                boldness = boldnesses.get((x, y), 'normal')
+                vertex   = VERTICES[shape][boldness]
+                row.append(vertex)
+            vertices.append(row)
 
-            for x, square in pairs:
-                number = self.numbers.get((x, y))
-                vertex = '.' if y == 0 else ('.' if x == 0 else '+')
-                edge   = '---' if number is None else f'{number:-<3}'
-                self.main_grid.addstr(vertex + edge)
-            self.main_grid.addstr('.')
+        for y in range(self.height):
+            for x in range(self.width):
+                vertex = vertices[y][x]
+                self.main_grid.addstr(vertex)
 
-            for x, square in pairs:
+                number    = self.numbers.get((x, y))
+                attribute = curses.A_BOLD if number == self.current_clue.number else curses.A_NORMAL
+                number    = '' if number is None else str(number)
+                self.main_grid.addstr(number, attribute)
+
+                bold = boldnesses.get((x, y)) in ('topleft', 'bottomleft', 'horizontal')
+                edge = EDGES['horizontal'][bold] * (3 - len(number))
+                self.main_grid.addstr(edge)
+
+            self.main_grid.addstr(vertices[y][x + 1])
+
+            for x in range(self.width):
+                bold = boldnesses.get((x, y)) in ('topleft', 'topright', 'vertical')
+                edge = EDGES['vertical'][bold]
+                self.main_grid.addstr(edge)
+
+                square = self.buffer[y][x]
                 if square == BLACK:
-                    fill = '///'
+                    self.main_grid.addstr(SHADE * 3)
                 else:
-                    if (x, y) == self.current_coords:
-                        left, right = '><'
-                    elif (x, y) in span:
-                        left, right = '..'
-                    else:
-                        left, right = '  '
-                    middle = ' ' if square == EMPTY else square
-                    fill = left + middle + right
-                self.main_grid.addstr('|' + fill)
-            self.main_grid.addstr('|')
+                    cursor = '>' if (x, y) == self.current_coords else ' '
+                    self.main_grid.addstr(cursor, curses.A_BOLD)
 
-        self.main_grid.addstr("'---" * self.width + "'")
+                    letter = ' ' if square == EMPTY else square
+                    status = ' ' # hard-code to be blank for now
+                    self.main_grid.addstr(letter + status)
+
+            bold = boldnesses.get((x + 1, y)) in ('topright', 'vertical')
+            edge = EDGES['vertical'][bold]
+            self.main_grid.addstr(edge)
+
+        y = self.height
+        for x in range(self.width):
+            vertex = vertices[y][x]
+            bold   = boldnesses.get((x, y)) in ('bottomleft', 'horizontal')
+            edge   = EDGES['horizontal'][bold]
+            self.main_grid.addstr(vertex + edge * 3)
+
+        vertex = vertices[y][x + 1]
+        self.main_grid.addstr(vertex)
 
         self.main_grid.refresh()
 
@@ -168,12 +270,14 @@ class Puzzle:
 
             lines   = []
             heights = []
+
             active_clue = self.clue_by_coords[direction][self.current_coords]
 
             for index, clue in enumerate(self.clues[direction]):
-                active = clue is active_clue
-                render = clue.render(active)
-                lines.extend(render)
+                active    = clue is active_clue
+                render    = clue.render(active)
+                attribute = curses.A_BOLD if clue is self.current_clue else curses.A_NORMAL
+                lines.extend((line, attribute) for line in render)
                 heights.append(len(render))
                 if active:
                     active_index = index
@@ -184,7 +288,9 @@ class Puzzle:
             else:
                 section = slice(-nrows, None)
 
-            clue_grid.addstr('\n'.join(lines[section]))
+            for line, attribute in lines[section]:
+                clue_grid.addstr(line + '\n', attribute)
+
             clue_grid.refresh()
 
     def handle(self, key):
@@ -402,8 +508,8 @@ class Clue:
 
     def render(self, active):
         lines    = WRAPPER.wrap(self.text)
-        star     = '*' if active else ' '
-        lines[0] = f'{star}{self.number:>2} ' + lines[0][4:]
+        cursor   = '>' if active else ' '
+        lines[0] = f'{cursor}{self.number:>2} ' + lines[0][4:]
         return lines
 
 def parse(filename):
