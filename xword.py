@@ -524,17 +524,25 @@ class Puzzle:
         self.status_line.refresh()
 
     def check(self):
-        if self.buffer == self.answer:
-            self.show_message("Congrats! You've finished the puzzle.")
+        empty = set()
+        wrong = set()
+
+        for buffer_row, answer_row in zip(self.buffer, self.answer):
+            for buffer, answer in zip(buffer_row, answer_row):
+                if buffer == BLACK:
+                    assert answer == BLACK
+                    continue
+                empty.add(buffer == EMPTY)
+                wrong.add(buffer not in (EMPTY, answer))
+
+        if all(empty):
+            self.show_message("There's nothing to check.")
+        elif any(wrong):
+            self.show_message("At least one square's amiss.")
+        elif any(empty):
+            self.show_message("You're doing fine.")
         else:
-            wrong = any(buffer != answer
-                        for buffer_row, answer_row in zip(self.buffer, self.answer)
-                        for buffer, answer in zip(buffer_row, answer_row)
-                        if buffer != EMPTY)
-            if wrong:
-                self.show_message("At least one square's amiss.")
-            else:
-                self.show_message("You're doing fine.")
+            self.show_message("Congrats! You've finished the puzzle.")
 
     def quit(self):
         sys.exit()
