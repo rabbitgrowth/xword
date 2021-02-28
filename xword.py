@@ -410,7 +410,7 @@ class Puzzle:
         if next_clue is not None:
             self.jump(*next_clue.span[0])
         else:
-            self.jump(*self.clues[self.other_direction(self.direction)][0].span[0])
+            self.jump(*self.clues[self.other_direction][0].span[0])
             self.toggle()
 
     def prev(self):
@@ -418,7 +418,7 @@ class Puzzle:
         if prev_clue is not None:
             self.jump(*prev_clue.span[0])
         else:
-            self.jump(*self.clues[self.other_direction(self.direction)][-1].span[0])
+            self.jump(*self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
     def replace(self):
@@ -433,12 +433,12 @@ class Puzzle:
 
         self.set(EMPTY, x, y)
 
-    @staticmethod
-    def other_direction(direction):
-        return 'down' if direction == 'across' else 'across'
+    @property
+    def other_direction(self):
+        return 'down' if self.direction == 'across' else 'across'
 
     def toggle(self):
-        self.direction = self.other_direction(self.direction)
+        self.direction = self.other_direction
 
     def insert(self):
         self.mode = 'insert'
