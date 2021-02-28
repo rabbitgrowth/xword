@@ -315,7 +315,10 @@ class Puzzle:
                     self.delete()
                 elif key == ' ':
                     self.toggle()
-                elif key in ('i', 'a'):
+                elif key == 'i':
+                    self.insert()
+                elif key == 'a':
+                    self.advance()
                     self.insert()
                 elif key == ':':
                     self.type_command()
