@@ -305,6 +305,10 @@ class Puzzle:
                     self.next()
                 elif key == 'b':
                     self.prev()
+                elif key == '}':
+                    self.skip()
+                elif key == '{':
+                    self.skip(forward=False)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -340,6 +344,18 @@ class Puzzle:
     @property
     def current_square(self):
         return self.get(*self.current_coords)
+
+    @property
+    def next_square(self):
+        if self.direction == 'across':
+            return self.get(self.x + 1, self.y)
+        return self.get(self.x, self.y + 1)
+
+    @property
+    def prev_square(self):
+        if self.direction == 'across':
+            return self.get(self.x - 1, self.y)
+        return self.get(self.x, self.y - 1)
 
     @property
     def current_clue(self):
@@ -393,6 +409,16 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
+    def skip(self, forward=True):
+        while True:
+            if forward:
+                self.advance()
+            else:
+                self.retreat()
+            if (self.current_square.is_empty()
+                    and (self.prev_square is None or not self.prev_square.is_empty())):
+                break
+
     def replace(self):
         key = self.main_grid.getkey()
         self.type(key)
@@ -427,10 +453,7 @@ class Puzzle:
         self.delete()
 
     def advance(self):
-        if self.direction == 'across':
-            next_square = self.get(self.x + 1, self.y)
-        else:
-            next_square = self.get(self.x, self.y + 1)
+        next_square = self.next_square
         if next_square is None or next_square.is_black():
             self.next()
             # self.next() already jumps to the start,
@@ -440,10 +463,7 @@ class Puzzle:
             self.jump(next_square)
 
     def retreat(self):
-        if self.direction == 'across':
-            prev_square = self.get(self.x - 1, self.y)
-        else:
-            prev_square = self.get(self.x, self.y - 1)
+        prev_square = self.prev_square
         if prev_square is None or prev_square.is_black():
             self.prev()
             self.end()
