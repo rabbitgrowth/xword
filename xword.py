@@ -449,22 +449,20 @@ class Puzzle:
         self.delete()
 
     def advance(self):
-        next_square = self.next_square
-        if next_square is None or next_square.is_black():
+        if self.next_square is None or self.next_square.is_black():
             self.next()
             # self.next() already jumps to the start,
             # so there's no need to write self.start() here
             # (compare with retreat() below)
         else:
-            self.jump(next_square)
+            self.jump(self.next_square)
 
     def retreat(self):
-        prev_square = self.prev_square
-        if prev_square is None or prev_square.is_black():
+        if self.prev_square is None or self.prev_square.is_black():
             self.prev()
             self.end()
         else:
-            self.jump(prev_square)
+            self.jump(self.prev_square)
 
     def type_command(self):
         curses.echo()      # show characters typed
