@@ -365,6 +365,10 @@ class Puzzle:
     def prev_clue(self):
         return self.current_clue.prev
 
+    @property
+    def other_direction(self):
+        return 'down' if self.direction == 'across' else 'across'
+
     def in_range(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
 
@@ -372,9 +376,6 @@ class Puzzle:
         if not self.in_range(x, y):
             return None
         return self.squares[y][x]
-
-    def jump(self, square):
-        self.x, self.y = square
 
     def move(self, dx, dy):
         x, y = self.current_square
@@ -390,6 +391,9 @@ class Puzzle:
             else:
                 self.jump(next_square)
                 break
+
+    def jump(self, square):
+        self.x, self.y = square
 
     def start(self):
         self.jump(self.current_clue.span[0])
@@ -421,39 +425,6 @@ class Puzzle:
                     and (self.prev_square is None or not self.prev_square.is_empty())):
                 break
 
-    def replace(self):
-        key = self.main_grid.getkey()
-        self.type(key)
-
-    def type(self, key):
-        self.current_square.set(key)
-
-    def delete(self):
-        self.type(EMPTY)
-
-    @property
-    def other_direction(self):
-        return 'down' if self.direction == 'across' else 'across'
-
-    def toggle(self):
-        self.direction = self.other_direction
-
-    def insert(self):
-        self.mode = 'insert'
-        self.show_message('-- INSERT --')
-
-    def escape(self):
-        self.mode = 'normal'
-        self.show_message('')
-
-    def reveal(self):
-        self.current_square.reveal()
-        self.advance()
-
-    def backspace(self):
-        self.retreat()
-        self.delete()
-
     def advance(self):
         if self.next_square is None or self.next_square.is_black():
             self.next()
@@ -469,6 +440,35 @@ class Puzzle:
             self.end()
         else:
             self.jump(self.prev_square)
+
+    def replace(self):
+        key = self.main_grid.getkey()
+        self.type(key)
+
+    def type(self, key):
+        self.current_square.set(key)
+
+    def delete(self):
+        self.type(EMPTY)
+
+    def toggle(self):
+        self.direction = self.other_direction
+
+    def insert(self):
+        self.mode = 'insert'
+        self.show_message('-- INSERT --')
+
+    def escape(self):
+        self.mode = 'normal'
+        self.show_message('')
+
+    def backspace(self):
+        self.retreat()
+        self.delete()
+
+    def reveal(self):
+        self.current_square.reveal()
+        self.advance()
 
     def type_command(self):
         curses.echo()      # show characters typed
