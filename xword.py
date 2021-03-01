@@ -357,6 +357,14 @@ class Puzzle:
     def current_clue(self):
         return self.current_square.clues[self.direction]
 
+    @property
+    def next_clue(self):
+        return self.current_clue.next
+
+    @property
+    def prev_clue(self):
+        return self.current_clue.prev
+
     def in_range(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
 
@@ -390,17 +398,15 @@ class Puzzle:
         self.jump(self.current_clue.span[-1])
 
     def next(self):
-        next_clue = self.current_clue.next
-        if next_clue is not None:
-            self.jump(next_clue.span[0])
+        if self.next_clue is not None:
+            self.jump(self.next_clue.span[0])
         else:
             self.jump(self.clues[self.other_direction][0].span[0])
             self.toggle()
 
     def prev(self):
-        prev_clue = self.current_clue.prev
-        if prev_clue is not None:
-            self.jump(prev_clue.span[0])
+        if self.prev_clue is not None:
+            self.jump(self.prev_clue.span[0])
         else:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
