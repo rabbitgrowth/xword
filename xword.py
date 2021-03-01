@@ -226,7 +226,7 @@ class Puzzle:
                 if square.is_black():
                     self.main_grid.addstr(SHADE * 3)
                 else:
-                    cursor = '>' if (x, y) == self.current_coords else ' '
+                    cursor = '>' if (x, y) == (self.x, self.y) else ' '
                     self.main_grid.addstr(cursor, curses.A_BOLD)
 
                     letter = ' ' if square.buffer == EMPTY else square.buffer
@@ -338,12 +338,8 @@ class Puzzle:
                     self.advance()
 
     @property
-    def current_coords(self):
-        return (self.x, self.y)
-
-    @property
     def current_square(self):
-        return self.get(*self.current_coords)
+        return self.get(self.x, self.y)
 
     @property
     def next_square(self):
@@ -373,7 +369,7 @@ class Puzzle:
         self.x, self.y = square
 
     def move(self, dx, dy):
-        x, y = self.current_coords
+        x, y = self.current_square
         x += dx
         y += dy
         while True:
