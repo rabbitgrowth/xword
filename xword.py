@@ -4,7 +4,7 @@ import struct
 import sys
 from collections import defaultdict
 from itertools   import groupby
-from string      import ascii_lowercase
+from string      import ascii_uppercase, ascii_lowercase
 from textwrap    import TextWrapper
 
 ENCODING = 'iso-8859-1' # used by the .puz format
@@ -14,7 +14,8 @@ EMPTY = '-'
 
 DIRECTIONS = ('across', 'down')
 
-LETTERS = set(ascii_lowercase)
+UPPERCASE = set(ascii_uppercase)
+LOWERCASE = set(ascii_lowercase)
 
 WRAPPER = TextWrapper(width             = 32,
                       initial_indent    = ' '*4,
@@ -229,8 +230,8 @@ class Puzzle:
                     cursor = '>' if (x, y) == (self.x, self.y) else ' '
                     self.main_grid.addstr(cursor, curses.A_BOLD)
 
-                    letter = ' ' if square.buffer == EMPTY else square.buffer
-                    status = ' ' # hard-code to be blank for now
+                    letter = ' ' if square.is_empty() else square.buffer
+                    status = '?' if square.pencil else ' '
                     self.main_grid.addstr(letter + status)
 
             bold = boldnesses.get((x + 1, y)) in ('topright', 'vertical')
@@ -320,6 +321,8 @@ class Puzzle:
                 elif key == 'a':
                     self.advance()
                     self.insert()
+                elif key == '~':
+                    self.toggle_pencil()
                 elif key == ':':
                     self.type_command()
             # Keys specific to insert mode
@@ -449,10 +452,13 @@ class Puzzle:
         self.type(key)
 
     def type(self, key):
-        self.current_square.set(key)
+        if key in LOWERCASE:
+            self.current_square.set(key.upper())
+        elif key in UPPERCASE:
+            self.current_square.set(key, pencil=True)
 
     def delete(self):
-        self.type(EMPTY)
+        self.current_square.unset()
 
     def toggle(self):
         self.direction = self.other_direction
@@ -471,6 +477,11 @@ class Puzzle:
 
     def reveal(self):
         self.current_square.reveal()
+        self.advance()
+
+    def toggle_pencil(self):
+        if not self.current_square.is_empty():
+            self.current_square.toggle_pencil()
         self.advance()
 
     def type_command(self):
@@ -517,8 +528,15 @@ class Puzzle:
             self.show_message("At least one square's amiss.")
         elif any(empty):
             self.show_message("You're doing fine.")
+            self.erase()
         else:
             self.show_message("Congrats! You've finished the puzzle.")
+            self.erase()
+
+    def erase(self):
+        for row in self.squares:
+            for square in row:
+                square.pencil = False
 
     def quit(self):
         sys.exit()
@@ -538,11 +556,12 @@ class Clue:
         return lines
 
 class Square:
-    def __init__(self, x, y, answer, buffer):
+    def __init__(self, x, y, answer, buffer, pencil=False):
         self.x      = x
         self.y      = y
         self.answer = answer
         self.buffer = buffer
+        self.pencil = pencil
         self.number = None
         self.clues  = {direction: None for direction in DIRECTIONS}
 
@@ -559,14 +578,20 @@ class Square:
     def is_correct(self):
         return self.buffer == self.answer
 
-    def set(self, key):
-        if key in LETTERS:
-            self.buffer = key.upper()
-        elif key == EMPTY:
-            self.buffer = EMPTY
+    def set(self, letter, pencil=False):
+        self.buffer = letter
+        self.pencil = pencil
+
+    def unset(self):
+        self.buffer = EMPTY
+        self.pencil = False
 
     def reveal(self):
         self.buffer = self.answer
+        self.pencil = False
+
+    def toggle_pencil(self):
+        self.pencil = not self.pencil
 
 def parse(filename):
     with open(filename, 'rb') as f:
