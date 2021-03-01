@@ -107,7 +107,7 @@ class Puzzle:
                     span = spans[direction].get(square)
                     if span is not None:
                         text = next(cluelist)
-                        clue = Clue(number, span, text)
+                        clue = Clue(number, text, span)
                         self.clues[direction].append(clue)
                         square.number = number
                         for other_square in span:
@@ -542,10 +542,10 @@ class Puzzle:
         sys.exit()
 
 class Clue:
-    def __init__(self, number, span, text):
+    def __init__(self, number, text, span):
         self.number = number
-        self.span   = span
         self.text   = text
+        self.span   = span
         self.prev   = None
         self.next   = None
 
