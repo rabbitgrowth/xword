@@ -90,8 +90,8 @@ class Puzzle:
 
         for direction, grid in zip(DIRECTIONS, (self.squares, zip(*self.squares))):
             for row in grid: # or column
-                for is_black, squares in groupby(row, key=lambda square: square.is_black()):
-                    if not is_black: # contiguous sequence of white squares
+                for black, squares in groupby(row, key=lambda square: square.black):
+                    if not black: # contiguous sequence of white squares
                         squares = list(squares)
                         spans[direction][squares[0]] = squares
 
@@ -224,13 +224,13 @@ class Puzzle:
                 self.main_grid.addstr(edge)
 
                 square = self.get(x, y)
-                if square.is_black():
+                if square.black:
                     self.main_grid.addstr(SHADE * 3)
                 else:
                     cursor = '>' if (x, y) == (self.x, self.y) else ' '
                     self.main_grid.addstr(cursor, curses.A_BOLD)
 
-                    letter = ' ' if square.is_empty() else square.buffer
+                    letter = ' ' if square.empty  else square.buffer
                     status = '?' if square.pencil else ' '
                     self.main_grid.addstr(letter + status)
 
@@ -391,7 +391,7 @@ class Puzzle:
             next_square = self.get(x, y)
             if next_square is None:
                 break
-            if next_square.is_black():
+            if next_square.black:
                 x += dx
                 y += dy
             else:
@@ -427,12 +427,12 @@ class Puzzle:
                 self.advance()
             else:
                 self.retreat()
-            if (self.current_square.is_empty()
-                    and (self.prev_square is None or not self.prev_square.is_empty())):
+            if (self.current_square.empty
+                    and (self.prev_square is None or not self.prev_square.empty)):
                 break
 
     def advance(self):
-        if self.next_square is None or self.next_square.is_black():
+        if self.next_square is None or self.next_square.black:
             self.next()
             # self.next() already jumps to the start,
             # so there's no need to write self.start() here
@@ -441,7 +441,7 @@ class Puzzle:
             self.jump(self.next_square)
 
     def retreat(self):
-        if self.prev_square is None or self.prev_square.is_black():
+        if self.prev_square is None or self.prev_square.black:
             self.prev()
             self.end()
         else:
@@ -480,7 +480,7 @@ class Puzzle:
         self.advance()
 
     def toggle_pencil(self):
-        if not self.current_square.is_empty():
+        if not self.current_square.empty:
             self.current_square.toggle_pencil()
         self.advance()
 
@@ -517,10 +517,10 @@ class Puzzle:
 
         for row in self.squares:
             for square in row:
-                if square.is_black():
+                if square.black:
                     continue
-                empty.add(square.is_empty())
-                wrong.add(not (square.is_empty() or square.is_correct()))
+                empty.add(square.empty)
+                wrong.add(not (square.empty or square.correct))
 
         if all(empty):
             self.show_message("There's nothing to check.")
@@ -569,13 +569,16 @@ class Square:
         yield self.x
         yield self.y
 
-    def is_black(self):
+    @property
+    def black(self):
         return self.answer == BLACK
 
-    def is_empty(self):
+    @property
+    def empty(self):
         return self.buffer == EMPTY
 
-    def is_correct(self):
+    @property
+    def correct(self):
         return self.buffer == self.answer
 
     def set(self, letter, pencil=False):
