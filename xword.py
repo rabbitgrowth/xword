@@ -432,7 +432,7 @@ class Puzzle:
                 break
 
     def advance(self):
-        if self.next_square is None or self.next_square.black:
+        if self.current_square is self.current_clue.span[-1]:
             self.next()
             # self.next() already jumps to the start,
             # so there's no need to write self.start() here
@@ -441,7 +441,7 @@ class Puzzle:
             self.jump(self.next_square)
 
     def retreat(self):
-        if self.prev_square is None or self.prev_square.black:
+        if self.current_square is self.current_clue.span[0]:
             self.prev()
             self.end()
         else:
