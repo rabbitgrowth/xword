@@ -73,12 +73,12 @@ SHADE = '░'
 
 class Puzzle:
     def __init__(self, answer, buffer, cluelist, title, author, copyright, notes):
-        self.squares = [[Square(x, y, a, b)
-                         for x, (a, b) in enumerate(zip(answer_row, buffer_row))]
-                        for y, (answer_row, buffer_row) in enumerate(zip(answer, buffer))]
+        self.grid = [[Square(x, y, a, b)
+                      for x, (a, b) in enumerate(zip(answer_row, buffer_row))]
+                     for y, (answer_row, buffer_row) in enumerate(zip(answer, buffer))]
 
-        self.width  = len(self.squares[0])
-        self.height = len(self.squares)
+        self.width  = len(self.grid[0])
+        self.height = len(self.grid)
 
         self.title     = title
         self.author    = author
@@ -88,7 +88,7 @@ class Puzzle:
         # Map squares that start clues to the squares the clues span
         spans = {direction: {} for direction in DIRECTIONS}
 
-        for direction, grid in zip(DIRECTIONS, (self.squares, zip(*self.squares))):
+        for direction, grid in zip(DIRECTIONS, (self.grid, zip(*self.grid))):
             for row in grid: # or column
                 for black, squares in groupby(row, key=lambda square: square.black):
                     if not black: # contiguous sequence of white squares
@@ -100,7 +100,7 @@ class Puzzle:
         cluelist   = iter(cluelist)
         self.clues = {direction: [] for direction in DIRECTIONS}
 
-        for row in self.squares:
+        for row in self.grid:
             for square in row:
                 numbered = False
                 for direction in DIRECTIONS:
@@ -381,7 +381,7 @@ class Puzzle:
     def get(self, x, y):
         if not self.in_range(x, y):
             return None
-        return self.squares[y][x]
+        return self.grid[y][x]
 
     def move(self, dx, dy):
         x, y = self.current_square
@@ -515,7 +515,7 @@ class Puzzle:
         empty = set()
         wrong = set()
 
-        for row in self.squares:
+        for row in self.grid:
             for square in row:
                 if square.black:
                     continue
@@ -534,7 +534,7 @@ class Puzzle:
             self.erase()
 
     def erase(self):
-        for row in self.squares:
+        for row in self.grid:
             for square in row:
                 square.pencil = False
 
