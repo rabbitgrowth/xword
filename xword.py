@@ -322,6 +322,13 @@ class Puzzle:
                     self.skip()
                 elif key == '{':
                     self.skip(forward=False)
+                elif key in '][':
+                    forward  = key == ']'
+                    next_key = self.main_grid.getkey()
+                    status   = {'q': PENCIL, 'x': CROSS}.get(next_key)
+                    if status is not None:
+                        condition = lambda square: square.status == status
+                        self.skip(forward=forward, condition=condition)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -429,16 +436,31 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
-    def skip(self, forward=True):
+    def skip(self, forward=True, condition=None):
+        start_square    = self.current_square
+        start_direction = self.direction
+
         while True:
             if forward:
                 self.advance()
             else:
                 self.retreat()
-            if (self.current_square.empty
-                    and (self.current_square is self.current_clue.span[0]
-                         or not self.prev_square.empty)):
+
+            if (self.current_square is start_square
+                    and self.direction == start_direction):
+                # Nothing is found after two cycles,
+                # and you're back where you started.
+                # Break to prevent infinite loop.
                 break
+
+            if condition is None:
+                if (self.current_square.empty
+                        and (self.current_square is self.current_clue.span[0]
+                             or not self.prev_square.empty)):
+                    break
+            else:
+                if condition(self.current_square):
+                    break
 
     def advance(self):
         if self.next_square is not None:
