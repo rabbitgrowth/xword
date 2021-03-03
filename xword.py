@@ -561,12 +561,12 @@ class Clue:
         return lines
 
 class Square:
-    def __init__(self, x, y, answer, buffer, pencil=False):
+    def __init__(self, x, y, answer, buffer):
         self.x      = x
         self.y      = y
         self.answer = answer
         self.buffer = buffer
-        self.pencil = pencil
+        self.pencil = False
         self.number = None
         self.clues  = {direction: None for direction in DIRECTIONS}
         self.prev   = {direction: None for direction in DIRECTIONS}
@@ -593,12 +593,10 @@ class Square:
         self.pencil = pencil
 
     def unset(self):
-        self.buffer = EMPTY
-        self.pencil = False
+        self.set(EMPTY)
 
     def reveal(self):
-        self.buffer = self.answer
-        self.pencil = False
+        self.set(self.answer)
 
     def toggle_pencil(self):
         self.pencil = not self.pencil
