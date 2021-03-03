@@ -12,6 +12,10 @@ ENCODING = 'iso-8859-1' # used by the .puz format
 BLACK = '.'
 EMPTY = '-'
 
+NORMAL = ' '
+PENCIL = '?'
+CROSS  = 'x'
+
 DIRECTIONS = ('across', 'down')
 
 UPPERCASE = set(ascii_uppercase)
@@ -238,8 +242,8 @@ class Puzzle:
                     cursor = '>' if (x, y) == (self.x, self.y) else ' '
                     self.main_grid.addstr(cursor, curses.A_BOLD)
 
-                    letter = ' ' if square.empty  else square.buffer
-                    status = '?' if square.pencil else ' '
+                    letter = ' ' if square.empty else square.buffer
+                    status = square.status
                     self.main_grid.addstr(letter + status)
 
             bold = boldnesses.get((x + 1, y)) in ('topright', 'vertical')
@@ -508,6 +512,8 @@ class Puzzle:
             self.quit()
         elif command in ('c', 'check'):
             self.check()
+        elif command in ('c!', 'check!'):
+            self.check(bang=True)
         elif command: # not entirely whitespace
             self.show_message(f'Unknown command "{command}"')
 
@@ -516,7 +522,7 @@ class Puzzle:
         self.status_line.addstr(message)
         self.status_line.refresh()
 
-    def check(self):
+    def check(self, bang=False):
         empty = set()
         wrong = set()
 
@@ -525,7 +531,9 @@ class Puzzle:
                 if square.black:
                     continue
                 empty.add(square.empty)
-                wrong.add(not (square.empty or square.correct))
+                wrong.add(not square.empty and not square.correct)
+                if bang:
+                    square.mark()
 
         if all(empty):
             self.show_message("There's nothing to check.")
@@ -541,7 +549,7 @@ class Puzzle:
     def erase(self):
         for row in self.grid:
             for square in row:
-                square.pencil = False
+                square.status = NORMAL
 
     def quit(self):
         sys.exit()
@@ -566,7 +574,7 @@ class Square:
         self.y      = y
         self.answer = answer
         self.buffer = buffer
-        self.pencil = False
+        self.status = NORMAL
         self.number = None
         self.clues  = {direction: None for direction in DIRECTIONS}
         self.prev   = {direction: None for direction in DIRECTIONS}
@@ -590,16 +598,26 @@ class Square:
 
     def set(self, letter, pencil=False):
         self.buffer = letter
-        self.pencil = pencil
+        # When setting a square to a new letter (even when the new letter
+        # is the same as the old one), overwrite any pencil or cross status,
+        # unless you're pencilling in, in which case set the status to pencil
+        self.status = PENCIL if pencil else NORMAL
 
     def unset(self):
         self.set(EMPTY)
 
+    def toggle_pencil(self):
+        # normal -> pencil (of course)
+        # pencil -> normal (of course)
+        # cross  -> pencil (non-obvious but feels right to the user)
+        self.status = NORMAL if self.status == PENCIL else PENCIL
+
+    def mark(self):
+        if not self.empty and not self.correct:
+            self.status = CROSS
+
     def reveal(self):
         self.set(self.answer)
-
-    def toggle_pencil(self):
-        self.pencil = not self.pencil
 
 def parse(filename):
     with open(filename, 'rb') as f:
