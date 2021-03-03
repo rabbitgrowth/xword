@@ -572,7 +572,9 @@ class Puzzle:
             self.show_message("There's nothing to check.")
         elif any(wrong):
             if bang:
-                self.show_message(f"Found {sum(wrong)} wrong squares.")
+                nwrong = sum(wrong)
+                suffix = 's' if nwrong > 1 else ''
+                self.show_message(f"Found {nwrong} wrong square{suffix}.")
                 self.erase()
             else:
                 self.show_message("At least one square's amiss.")
