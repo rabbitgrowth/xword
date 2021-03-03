@@ -116,14 +116,22 @@ class Puzzle:
                 if numbered:
                     number += 1
 
-        # Doubly-link clues
-        for direction in DIRECTIONS:
-            prev_clue = None
-            for clue in self.clues[direction]:
+        # Doubly-link clues and squares
+        for direction, clues in self.clues.items():
+            prev_clue   = None
+            prev_square = None
+
+            for clue in clues:
                 if prev_clue is not None:
                     clue.prev = prev_clue
                     prev_clue.next = clue
                 prev_clue = clue
+
+                for square in clue.span:
+                    if prev_square is not None:
+                        square.prev[direction] = prev_square
+                        prev_square.next[direction] = square
+                    prev_square = square
 
         self.mode      = 'normal'
         self.direction = 'across'
@@ -349,15 +357,11 @@ class Puzzle:
 
     @property
     def next_square(self):
-        if self.direction == 'across':
-            return self.get(self.x + 1, self.y)
-        return self.get(self.x, self.y + 1)
+        return self.current_square.next[self.direction]
 
     @property
     def prev_square(self):
-        if self.direction == 'across':
-            return self.get(self.x - 1, self.y)
-        return self.get(self.x, self.y - 1)
+        return self.current_square.prev[self.direction]
 
     @property
     def current_clue(self):
@@ -428,24 +432,25 @@ class Puzzle:
             else:
                 self.retreat()
             if (self.current_square.empty
-                    and (self.prev_square is None or not self.prev_square.empty)):
+                    and (self.current_square is self.current_clue.span[0]
+                         or not self.prev_square.empty)):
                 break
 
     def advance(self):
-        if self.current_square is self.current_clue.span[-1]:
+        if self.next_square is not None:
+            self.jump(self.next_square)
+        else:
             self.next()
             # self.next() already jumps to the start,
             # so there's no need to write self.start() here
             # (compare with retreat() below)
-        else:
-            self.jump(self.next_square)
 
     def retreat(self):
-        if self.current_square is self.current_clue.span[0]:
+        if self.prev_square is not None:
+            self.jump(self.prev_square)
+        else:
             self.prev()
             self.end()
-        else:
-            self.jump(self.prev_square)
 
     def replace(self):
         key = self.main_grid.getkey()
@@ -564,6 +569,8 @@ class Square:
         self.pencil = pencil
         self.number = None
         self.clues  = {direction: None for direction in DIRECTIONS}
+        self.prev   = {direction: None for direction in DIRECTIONS}
+        self.next   = {direction: None for direction in DIRECTIONS}
 
     def __iter__(self):
         yield self.x
