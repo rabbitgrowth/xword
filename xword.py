@@ -637,6 +637,8 @@ class Square:
     def mark(self):
         if not self.empty and not self.correct:
             self.status = CROSS
+        else:
+            self.status = NORMAL
 
     def reveal(self):
         self.set(self.answer)
