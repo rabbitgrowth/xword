@@ -178,7 +178,7 @@ class Puzzle:
     def render_main_grid(self):
         self.main_grid.erase()
 
-        span       = self.current_clue.span
+        span       = self.clue.span
         boldnesses = {}
         if self.direction == 'across':
             x, y = span[0]
@@ -220,7 +220,7 @@ class Puzzle:
 
                 square    = self.get(x, y)
                 number    = square.number
-                attribute = curses.A_BOLD if number == self.current_clue.number else curses.A_NORMAL
+                attribute = curses.A_BOLD if number == self.clue.number else curses.A_NORMAL
                 number    = '' if number is None else str(number)
                 self.main_grid.addstr(number, attribute)
 
@@ -271,12 +271,12 @@ class Puzzle:
             lines   = []
             heights = []
 
-            active_clue = self.current_square.clues[direction]
+            active_clue = self.square.clues[direction]
 
             for index, clue in enumerate(self.clues[direction]):
                 active    = clue is active_clue
                 render    = clue.render(active)
-                attribute = curses.A_BOLD if clue is self.current_clue else curses.A_NORMAL
+                attribute = curses.A_BOLD if clue is self.clue else curses.A_NORMAL
                 lines.extend((line, attribute) for line in render)
                 heights.append(len(render))
                 if active:
@@ -363,28 +363,28 @@ class Puzzle:
                     self.advance()
 
     @property
-    def current_square(self):
+    def square(self):
         return self.get(self.x, self.y)
 
     @property
     def next_square(self):
-        return self.current_square.next[self.direction]
+        return self.square.next[self.direction]
 
     @property
     def prev_square(self):
-        return self.current_square.prev[self.direction]
+        return self.square.prev[self.direction]
 
     @property
-    def current_clue(self):
-        return self.current_square.clues[self.direction]
+    def clue(self):
+        return self.square.clues[self.direction]
 
     @property
     def next_clue(self):
-        return self.current_clue.next
+        return self.clue.next
 
     @property
     def prev_clue(self):
-        return self.current_clue.prev
+        return self.clue.prev
 
     @property
     def other_direction(self):
@@ -399,7 +399,7 @@ class Puzzle:
         return self.grid[y][x]
 
     def move(self, dx, dy):
-        x, y = self.current_square
+        x, y = self.square
         x += dx
         y += dy
         while True:
@@ -417,10 +417,10 @@ class Puzzle:
         self.x, self.y = square
 
     def start(self):
-        self.jump(self.current_clue.span[0])
+        self.jump(self.clue.span[0])
 
     def end(self):
-        self.jump(self.current_clue.span[-1])
+        self.jump(self.clue.span[-1])
 
     def next(self):
         if self.next_clue is not None:
@@ -437,7 +437,7 @@ class Puzzle:
             self.toggle()
 
     def skip(self, forward=True, condition=None):
-        start_square    = self.current_square
+        start_square    = self.square
         start_direction = self.direction
 
         while True:
@@ -446,7 +446,7 @@ class Puzzle:
             else:
                 self.retreat()
 
-            if (self.current_square is start_square
+            if (self.square is start_square
                     and self.direction == start_direction):
                 # Nothing is found after two cycles,
                 # and you're back where you started.
@@ -454,12 +454,12 @@ class Puzzle:
                 break
 
             if condition is None:
-                if (self.current_square.empty
-                        and (self.current_square is self.current_clue.span[0]
+                if (self.square.empty
+                        and (self.square is self.clue.span[0]
                              or not self.prev_square.empty)):
                     break
             else:
-                if condition(self.current_square):
+                if condition(self.square):
                     break
 
     def advance(self):
@@ -484,12 +484,12 @@ class Puzzle:
 
     def type(self, key):
         if key in LOWERCASE:
-            self.current_square.set(key.upper())
+            self.square.set(key.upper())
         elif key in UPPERCASE:
-            self.current_square.set(key, pencil=True)
+            self.square.set(key, pencil=True)
 
     def delete(self):
-        self.current_square.unset()
+        self.square.unset()
 
     def toggle(self):
         self.direction = self.other_direction
@@ -507,12 +507,12 @@ class Puzzle:
         self.delete()
 
     def reveal(self):
-        self.current_square.reveal()
+        self.square.reveal()
         self.advance()
 
     def toggle_pencil(self):
-        if not self.current_square.empty:
-            self.current_square.toggle_pencil()
+        if not self.square.empty:
+            self.square.toggle_pencil()
         self.advance()
 
     def type_command(self):
