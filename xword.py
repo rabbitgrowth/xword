@@ -545,22 +545,36 @@ class Puzzle:
         self.status_line.refresh()
 
     def check(self, bang=False):
-        empty = set()
-        wrong = set()
+        #                      wrong
+        #              ┌──────┬──────┬──────┐
+        #              │ none │ some │ all  │
+        #       ┌──────┼──────┼──────┴──────┤
+        #       │ none │ done │             │
+        #       ├──────┼──────┤    amiss    │
+        # empty │ some │ fine │             │
+        #       ├──────┼──────┴─────────────┤
+        #       │  all │  nothing to check  │
+        #       └──────┴────────────────────┘
+
+        empty = []
+        wrong = []
 
         for row in self.grid:
             for square in row:
                 if square.black:
                     continue
-                empty.add(square.empty)
-                wrong.add(not square.empty and not square.correct)
+                empty.append(square.empty)
+                wrong.append(square.wrong)
                 if bang:
                     square.mark()
 
         if all(empty):
             self.show_message("There's nothing to check.")
         elif any(wrong):
-            self.show_message("At least one square's amiss.")
+            if bang:
+                self.show_message(f"Found {sum(wrong)} wrong squares.")
+            else:
+                self.show_message("At least one square's amiss.")
         elif any(empty):
             self.show_message("You're doing fine.")
             self.erase()
@@ -615,8 +629,8 @@ class Square:
         return self.buffer == EMPTY
 
     @property
-    def correct(self):
-        return self.buffer == self.answer
+    def wrong(self):
+        return not self.empty and self.buffer != self.answer
 
     def set(self, letter, pencil=False):
         self.buffer = letter
@@ -635,7 +649,7 @@ class Square:
         self.status = NORMAL if self.status == PENCIL else PENCIL
 
     def mark(self):
-        if not self.empty and not self.correct:
+        if self.wrong:
             self.status = CROSS
         else:
             self.status = NORMAL
