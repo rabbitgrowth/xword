@@ -573,6 +573,7 @@ class Puzzle:
         elif any(wrong):
             if bang:
                 self.show_message(f"Found {sum(wrong)} wrong squares.")
+                self.erase()
             else:
                 self.show_message("At least one square's amiss.")
         elif any(empty):
@@ -585,7 +586,7 @@ class Puzzle:
     def erase(self):
         for row in self.grid:
             for square in row:
-                square.status = NORMAL
+                square.erase()
 
     def quit(self):
         sys.exit()
@@ -648,11 +649,13 @@ class Square:
         # cross  -> pencil (non-obvious but feels right to the user)
         self.status = NORMAL if self.status == PENCIL else PENCIL
 
+    def erase(self):
+        if self.status == PENCIL:
+            self.status = NORMAL
+
     def mark(self):
         if self.wrong:
             self.status = CROSS
-        else:
-            self.status = NORMAL
 
     def reveal(self):
         self.set(self.answer)
