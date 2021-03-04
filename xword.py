@@ -325,7 +325,7 @@ class Puzzle:
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
-                    status   = {'q': PENCIL, 'x': CROSS}.get(next_key)
+                    status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
                         condition = lambda square: square.status == status
                         self.skip(forward=forward, condition=condition)
