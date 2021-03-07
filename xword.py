@@ -12,6 +12,10 @@ ENCODING = 'iso-8859-1' # used by the .puz format
 BLACK = '.'
 EMPTY = '-'
 
+NORMAL = ' '
+PENCIL = '?'
+CROSS  = 'x'
+
 DIRECTIONS = ('across', 'down')
 
 UPPERCASE = set(ascii_uppercase)
@@ -174,7 +178,7 @@ class Puzzle:
     def render_main_grid(self):
         self.main_grid.erase()
 
-        span       = self.current_clue.span
+        span       = self.clue.span
         boldnesses = {}
         if self.direction == 'across':
             x, y = span[0]
@@ -216,7 +220,7 @@ class Puzzle:
 
                 square    = self.get(x, y)
                 number    = square.number
-                attribute = curses.A_BOLD if number == self.current_clue.number else curses.A_NORMAL
+                attribute = curses.A_BOLD if number == self.clue.number else curses.A_NORMAL
                 number    = '' if number is None else str(number)
                 self.main_grid.addstr(number, attribute)
 
@@ -238,8 +242,8 @@ class Puzzle:
                     cursor = '>' if (x, y) == (self.x, self.y) else ' '
                     self.main_grid.addstr(cursor, curses.A_BOLD)
 
-                    letter = ' ' if square.empty  else square.buffer
-                    status = '?' if square.pencil else ' '
+                    letter = ' ' if square.empty else square.buffer
+                    status = square.status
                     self.main_grid.addstr(letter + status)
 
             bold = boldnesses.get((x + 1, y)) in ('topright', 'vertical')
@@ -267,12 +271,12 @@ class Puzzle:
             lines   = []
             heights = []
 
-            active_clue = self.current_square.clues[direction]
+            active_clue = self.square.clues[direction]
 
             for index, clue in enumerate(self.clues[direction]):
                 active    = clue is active_clue
                 render    = clue.render(active)
-                attribute = curses.A_BOLD if clue is self.current_clue else curses.A_NORMAL
+                attribute = curses.A_BOLD if clue is self.clue else curses.A_NORMAL
                 lines.extend((line, attribute) for line in render)
                 heights.append(len(render))
                 if active:
@@ -318,6 +322,13 @@ class Puzzle:
                     self.skip()
                 elif key == '{':
                     self.skip(forward=False)
+                elif key in '][':
+                    forward  = key == ']'
+                    next_key = self.main_grid.getkey()
+                    status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
+                    if status is not None:
+                        condition = lambda square: square.status == status
+                        self.skip(forward=forward, condition=condition)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -352,28 +363,28 @@ class Puzzle:
                     self.advance()
 
     @property
-    def current_square(self):
+    def square(self):
         return self.get(self.x, self.y)
 
     @property
     def next_square(self):
-        return self.current_square.next[self.direction]
+        return self.square.next[self.direction]
 
     @property
     def prev_square(self):
-        return self.current_square.prev[self.direction]
+        return self.square.prev[self.direction]
 
     @property
-    def current_clue(self):
-        return self.current_square.clues[self.direction]
+    def clue(self):
+        return self.square.clues[self.direction]
 
     @property
     def next_clue(self):
-        return self.current_clue.next
+        return self.clue.next
 
     @property
     def prev_clue(self):
-        return self.current_clue.prev
+        return self.clue.prev
 
     @property
     def other_direction(self):
@@ -388,7 +399,7 @@ class Puzzle:
         return self.grid[y][x]
 
     def move(self, dx, dy):
-        x, y = self.current_square
+        x, y = self.square
         x += dx
         y += dy
         while True:
@@ -406,10 +417,10 @@ class Puzzle:
         self.x, self.y = square
 
     def start(self):
-        self.jump(self.current_clue.span[0])
+        self.jump(self.clue.span[0])
 
     def end(self):
-        self.jump(self.current_clue.span[-1])
+        self.jump(self.clue.span[-1])
 
     def next(self):
         if self.next_clue is not None:
@@ -425,16 +436,31 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
-    def skip(self, forward=True):
+    def skip(self, forward=True, condition=None):
+        start_square    = self.square
+        start_direction = self.direction
+
         while True:
             if forward:
                 self.advance()
             else:
                 self.retreat()
-            if (self.current_square.empty
-                    and (self.current_square is self.current_clue.span[0]
-                         or not self.prev_square.empty)):
+
+            if (self.square is start_square
+                    and self.direction == start_direction):
+                # Nothing is found after two cycles,
+                # and you're back where you started.
+                # Break to prevent infinite loop.
                 break
+
+            if condition is None:
+                if (self.square.empty
+                        and (self.square is self.clue.span[0]
+                             or not self.prev_square.empty)):
+                    break
+            else:
+                if condition(self.square):
+                    break
 
     def advance(self):
         if self.next_square is not None:
@@ -458,12 +484,12 @@ class Puzzle:
 
     def type(self, key):
         if key in LOWERCASE:
-            self.current_square.set(key.upper())
+            self.square.set(key.upper())
         elif key in UPPERCASE:
-            self.current_square.set(key, pencil=True)
+            self.square.set(key, pencil=True)
 
     def delete(self):
-        self.current_square.unset()
+        self.square.unset()
 
     def toggle(self):
         self.direction = self.other_direction
@@ -481,12 +507,12 @@ class Puzzle:
         self.delete()
 
     def reveal(self):
-        self.current_square.reveal()
+        self.square.reveal()
         self.advance()
 
     def toggle_pencil(self):
-        if not self.current_square.empty:
-            self.current_square.toggle_pencil()
+        if not self.square.empty:
+            self.square.toggle_pencil()
         self.advance()
 
     def type_command(self):
@@ -508,6 +534,8 @@ class Puzzle:
             self.quit()
         elif command in ('c', 'check'):
             self.check()
+        elif command in ('c!', 'check!'):
+            self.check(bang=True)
         elif command: # not entirely whitespace
             self.show_message(f'Unknown command "{command}"')
 
@@ -516,21 +544,40 @@ class Puzzle:
         self.status_line.addstr(message)
         self.status_line.refresh()
 
-    def check(self):
-        empty = set()
-        wrong = set()
+    def check(self, bang=False):
+        #                      wrong
+        #              ┌──────┬──────┬──────┐
+        #              │ none │ some │ all  │
+        #       ┌──────┼──────┼──────┴──────┤
+        #       │ none │ done │             │
+        #       ├──────┼──────┤    amiss    │
+        # empty │ some │ fine │             │
+        #       ├──────┼──────┴─────────────┤
+        #       │  all │  nothing to check  │
+        #       └──────┴────────────────────┘
+
+        empty = []
+        wrong = []
 
         for row in self.grid:
             for square in row:
                 if square.black:
                     continue
-                empty.add(square.empty)
-                wrong.add(not (square.empty or square.correct))
+                empty.append(square.empty)
+                wrong.append(square.wrong)
+                if bang:
+                    square.mark()
 
         if all(empty):
             self.show_message("There's nothing to check.")
         elif any(wrong):
-            self.show_message("At least one square's amiss.")
+            if bang:
+                nwrong = sum(wrong)
+                suffix = 's' if nwrong > 1 else ''
+                self.show_message(f"Found {nwrong} wrong square{suffix}.")
+                self.erase()
+            else:
+                self.show_message("At least one square's amiss.")
         elif any(empty):
             self.show_message("You're doing fine.")
             self.erase()
@@ -541,7 +588,7 @@ class Puzzle:
     def erase(self):
         for row in self.grid:
             for square in row:
-                square.pencil = False
+                square.erase()
 
     def quit(self):
         sys.exit()
@@ -566,7 +613,7 @@ class Square:
         self.y      = y
         self.answer = answer
         self.buffer = buffer
-        self.pencil = False
+        self.status = NORMAL
         self.number = None
         self.clues  = {direction: None for direction in DIRECTIONS}
         self.prev   = {direction: None for direction in DIRECTIONS}
@@ -585,21 +632,35 @@ class Square:
         return self.buffer == EMPTY
 
     @property
-    def correct(self):
-        return self.buffer == self.answer
+    def wrong(self):
+        return not self.empty and self.buffer != self.answer
 
     def set(self, letter, pencil=False):
         self.buffer = letter
-        self.pencil = pencil
+        # When setting a square to a new letter (even when the new letter
+        # is the same as the old one), overwrite any pencil or cross status,
+        # unless you're pencilling in, in which case set the status to pencil
+        self.status = PENCIL if pencil else NORMAL
 
     def unset(self):
         self.set(EMPTY)
 
+    def toggle_pencil(self):
+        # normal -> pencil (of course)
+        # pencil -> normal (of course)
+        # cross  -> pencil (non-obvious but feels right to the user)
+        self.status = NORMAL if self.status == PENCIL else PENCIL
+
+    def erase(self):
+        if self.status == PENCIL:
+            self.status = NORMAL
+
+    def mark(self):
+        if self.wrong:
+            self.status = CROSS
+
     def reveal(self):
         self.set(self.answer)
-
-    def toggle_pencil(self):
-        self.pencil = not self.pencil
 
 def parse(filename):
     with open(filename, 'rb') as f:
