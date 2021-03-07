@@ -319,16 +319,16 @@ class Puzzle:
                 elif key == 'b':
                     self.prev()
                 elif key == '}':
-                    self.skip()
+                    self.find(self.is_checkpoint)
                 elif key == '{':
-                    self.skip(forward=False)
+                    self.find(self.is_checkpoint, forward=False)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
                     status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
                         condition = lambda square: square.status == status
-                        self.skip(forward=forward, condition=condition)
+                        self.find(condition, forward=forward)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -373,6 +373,32 @@ class Puzzle:
     @property
     def prev_square(self):
         return self.square.prev[self.direction]
+
+    @property
+    def next_squares(self):
+        start_square = self.square
+        square       = start_square.next[self.direction]
+        while square is not None:
+            yield square
+            square = square.next[self.direction]
+        # Wrap around to the beginning
+        square = self.clues[self.direction][0].span[0]
+        while square is not start_square:
+            yield square
+            square = square.next[self.direction]
+
+    @property
+    def prev_squares(self):
+        start_square = self.square
+        square       = start_square.prev[self.direction]
+        while square is not None:
+            yield square
+            square = square.prev[self.direction]
+        # Wrap around to the end
+        square = self.clues[self.direction][-1].span[-1]
+        while square is not start_square:
+            yield square
+            square = square.prev[self.direction]
 
     @property
     def clue(self):
@@ -436,31 +462,17 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
-    def skip(self, forward=True, condition=None):
-        start_square    = self.square
-        start_direction = self.direction
+    def is_checkpoint(self, square):
+        return (square.empty
+                and (square is square.clues[self.direction].span[0]
+                     or not square.prev[self.direction].empty))
 
-        while True:
-            if forward:
-                self.advance()
-            else:
-                self.retreat()
-
-            if (self.square is start_square
-                    and self.direction == start_direction):
-                # Nothing is found after two cycles,
-                # and you're back where you started.
-                # Break to prevent infinite loop.
-                break
-
-            if condition is None:
-                if (self.square.empty
-                        and (self.square is self.clue.span[0]
-                             or not self.prev_square.empty)):
-                    break
-            else:
-                if condition(self.square):
-                    break
+    def find(self, condition, forward=True):
+        squares = self.next_squares if forward else self.prev_squares
+        try:
+            self.jump(next(filter(condition, squares)))
+        except StopIteration:
+            pass
 
     def advance(self):
         if self.next_square is not None:
