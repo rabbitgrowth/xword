@@ -145,6 +145,8 @@ class Puzzle:
         # there could be black squares in the top left-hand corner.
         self.x, self.y = self.clues[self.direction][0].span[0]
 
+        self.find_letter = None
+
     def run(self):
         # Prevent escape key delay
         os.environ.setdefault('ESCDELAY', '0')
@@ -318,10 +320,23 @@ class Puzzle:
                     self.next()
                 elif key == 'b':
                     self.prev()
-                elif key == '}':
-                    self.find(self.is_checkpoint)
-                elif key == '{':
-                    self.find(self.is_checkpoint, forward=False)
+                elif key in 'fF':
+                    forward = key == 'f'
+                    letter = self.main_grid.getkey().upper()
+                    # Remember letter for ; and ,
+                    self.find_letter = letter
+                    condition = lambda square: square.buffer == letter
+                    self.find(condition, forward=forward)
+                    # There's no real need for t and T,
+                    # because it's all just English letters.
+                elif key in ';,':
+                    forward = key == ';'
+                    if self.find_letter is not None:
+                        condition = lambda square: square.buffer == self.find_letter
+                        self.find(condition, forward=forward)
+                elif key in '}{':
+                    forward = key == '}'
+                    self.find(self.is_checkpoint, forward=forward)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
