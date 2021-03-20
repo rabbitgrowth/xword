@@ -1,6 +1,6 @@
 # xword-vim
 
-The goal here is to build a Terminal-based crossword solving interface with Vim-like keybindings.
+The goal here is to build a terminal-based crossword solving interface with Vim-like keybindings.
 This means that you press `i` to enter “insert mode” to start typing answers,
 `<Esc>` or `jk` to quit insert mode, `h` `j` `k` `l` to move around the grid,
 `w` to jump to the next clue and `b` to the previous clue, etc.
