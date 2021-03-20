@@ -321,6 +321,7 @@ class Puzzle:
                 elif key == 'b':
                     self.prev()
                 elif key in 'fFtT;,':
+                    skip_one = False # see explanation below
                     if key in 'fFtT':
                         letter  = self.main_grid.getkey().upper()
                         forward = key in 'ft'
@@ -330,8 +331,32 @@ class Puzzle:
                         letter, forward, till = self.last_find
                         if key == ',':
                             forward = not forward
+                        # Imagine you're here:
+                        #    AB  AB
+                        #  ^
+                        # You press |ta|:
+                        #    AB  AB
+                        #   ^
+                        # From the computer's perspective, if you now press |;|
+                        # the cursor should stay put, because you're repeating |ta|,
+                        # which should bring you to the next square before an A --
+                        # where you already are. That might be the theoretically
+                        # correct behaviour, but a human user would expect the cursor
+                        # to jump to a more useful position:
+                        #    AB  AB
+                        #       ^
+                        # Therefore, as a special case, skip one character when
+                        # repeating |t| or |T|. Relevant Vim documentation:
+                        #                                            *cpo-;*
+                        #  ;   When using |,| or |;| to repeat the last |t| search
+                        #      and the cursor is right in front of the searched
+                        #      character, the cursor won't move. When not included,
+                        #      the cursor would skip over it and jump to the
+                        #      following occurrence.
+                        if till:
+                            skip_one = True
                     found = self.find(lambda square: square.buffer == letter,
-                                      forward=forward, skip_repeats=False)
+                                      forward=forward, skip_one=skip_one)
                     if found and till:
                         if forward:
                             self.retreat()
@@ -339,13 +364,15 @@ class Puzzle:
                             self.advance()
                 elif key in '}{':
                     forward = key == '}'
-                    self.find(lambda square: square.empty, forward=forward)
+                    self.find(lambda square: square.empty,
+                              forward=forward, skip_repeats=True)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
                     status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
-                        self.find(lambda square: square.status == status, forward=forward)
+                        self.find(lambda square: square.status == status,
+                                  forward=forward, skip_repeats=True)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -467,7 +494,8 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
-    def find(self, condition, forward=True, skip_repeats=True):
+    def find(self, condition, forward=True, skip_repeats=False, skip_one=False):
+        assert not (skip_repeats and skip_one) # makes no sense to set both options
         squares = self.next_squares if forward else self.prev_squares
         try:
             if skip_repeats:
@@ -488,6 +516,8 @@ class Puzzle:
                 # is the square you want to jump to.
                 squares = chain([self.square], squares)
                 squares = dropwhile(condition, squares)
+            if skip_one:
+                next(squares)
             self.jump(next(filter(condition, squares)))
             return True
         except StopIteration:
