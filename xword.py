@@ -316,6 +316,12 @@ class Puzzle:
                     self.start()
                 elif key == '$':
                     self.end()
+                elif key == 'g':
+                    next_key = self.main_grid.getkey()
+                    if next_key == 'g':
+                        self.first()
+                elif key == 'G':
+                    self.last()
                 elif key == 'w':
                     self.next()
                 elif key == 'b':
@@ -480,19 +486,25 @@ class Puzzle:
     def end(self):
         self.jump(self.clue.span[-1])
 
+    def first(self):
+        self.jump(self.clues[self.direction][0].span[0])
+
+    def last(self):
+        self.jump(self.clues[self.direction][-1].span[0])
+
     def next(self):
         if self.next_clue is not None:
             self.jump(self.next_clue.span[0])
         else:
-            self.jump(self.clues[self.other_direction][0].span[0])
             self.toggle()
+            self.first()
 
     def prev(self):
         if self.prev_clue is not None:
             self.jump(self.prev_clue.span[0])
         else:
-            self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
+            self.last()
 
     def find(self, condition, forward=True, skip_repeats=False, skip_one=False):
         assert not (skip_repeats and skip_one) # makes no sense to set both options
