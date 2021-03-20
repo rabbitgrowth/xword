@@ -147,6 +147,7 @@ class Puzzle:
 
         self.find_letter  = None
         self.find_forward = None
+        self.find_till    = None
 
     def run(self):
         # Prevent escape key delay
@@ -321,32 +322,38 @@ class Puzzle:
                     self.next()
                 elif key == 'b':
                     self.prev()
-                elif key in 'fF':
-                    forward = key == 'f'
-                    letter = self.main_grid.getkey().upper()
-                    # Remember letter and direction for ; and ,
-                    self.find_letter  = letter
-                    self.find_forward = forward
-                    self.find(lambda square: square.buffer == letter,
-                              forward, skip_repeats=False)
-                    # There's no real need for t and T,
-                    # because it's all just English letters.
-                elif key in ';,':
-                    if self.find_letter is not None:
-                        forward = self.find_forward
-                        if key == ',':
-                            forward = not forward
-                        self.find(lambda square: square.buffer == self.find_letter,
-                                  forward, skip_repeats=False)
+                elif key in 'fFtT;,':
+                    if key in 'fFtT':
+                        letter  = self.main_grid.getkey().upper()
+                        forward = key in 'ft'
+                        till    = key in 'tT'
+                        # Remember letter and direction for ; and ,
+                        self.find_letter  = letter
+                        self.find_forward = forward
+                        self.find_till    = till
+                    else:
+                        if self.find_letter is not None:
+                            letter  = self.find_letter
+                            forward = self.find_forward
+                            till    = self.find_till
+                            if key == ',':
+                                forward = not forward
+                    found = self.find(lambda square: square.buffer == letter,
+                                      forward=forward, skip_repeats=False)
+                    if found and till:
+                        if forward:
+                            self.retreat()
+                        else:
+                            self.advance()
                 elif key in '}{':
                     forward = key == '}'
-                    self.find(lambda square: square.empty, forward)
+                    self.find(lambda square: square.empty, forward=forward)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
                     status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
-                        self.find(lambda square: square.status == status, forward)
+                        self.find(lambda square: square.status == status, forward=forward)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -490,8 +497,9 @@ class Puzzle:
                 squares = chain([self.square], squares)
                 squares = dropwhile(condition, squares)
             self.jump(next(filter(condition, squares)))
+            return True
         except StopIteration:
-            pass
+            return False
 
     def advance(self):
         if self.next_square is not None:
