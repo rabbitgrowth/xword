@@ -145,7 +145,8 @@ class Puzzle:
         # there could be black squares in the top left-hand corner.
         self.x, self.y = self.clues[self.direction][0].span[0]
 
-        self.find_letter = None
+        self.find_letter  = None
+        self.find_forward = None
 
     def run(self):
         # Prevent escape key delay
@@ -323,28 +324,29 @@ class Puzzle:
                 elif key in 'fF':
                     forward = key == 'f'
                     letter = self.main_grid.getkey().upper()
-                    # Remember letter for ; and ,
-                    self.find_letter = letter
-                    condition = lambda square: square.buffer == letter
-                    self.find(condition, forward, skip_repeats=False)
+                    # Remember letter and direction for ; and ,
+                    self.find_letter  = letter
+                    self.find_forward = forward
+                    self.find(lambda square: square.buffer == letter,
+                              forward, skip_repeats=False)
                     # There's no real need for t and T,
                     # because it's all just English letters.
                 elif key in ';,':
-                    forward = key == ';'
                     if self.find_letter is not None:
-                        condition = lambda square: square.buffer == self.find_letter
-                        self.find(condition, forward, skip_repeats=False)
+                        forward = self.find_forward
+                        if key == ',':
+                            forward = not forward
+                        self.find(lambda square: square.buffer == self.find_letter,
+                                  forward, skip_repeats=False)
                 elif key in '}{':
                     forward = key == '}'
-                    condition = lambda square: square.empty
-                    self.find(condition, forward)
+                    self.find(lambda square: square.empty, forward)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
                     status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
-                        condition = lambda square: square.status == status
-                        self.find(condition, forward)
+                        self.find(lambda square: square.status == status, forward)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
