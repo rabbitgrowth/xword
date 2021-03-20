@@ -3,7 +3,7 @@ import os
 import struct
 import sys
 from collections import defaultdict
-from itertools   import groupby
+from itertools   import chain, dropwhile, groupby
 from string      import ascii_uppercase, ascii_lowercase
 from textwrap    import TextWrapper
 
@@ -326,24 +326,25 @@ class Puzzle:
                     # Remember letter for ; and ,
                     self.find_letter = letter
                     condition = lambda square: square.buffer == letter
-                    self.find(condition, forward=forward)
+                    self.find(condition, forward, skip_repeats=False)
                     # There's no real need for t and T,
                     # because it's all just English letters.
                 elif key in ';,':
                     forward = key == ';'
                     if self.find_letter is not None:
                         condition = lambda square: square.buffer == self.find_letter
-                        self.find(condition, forward=forward)
+                        self.find(condition, forward, skip_repeats=False)
                 elif key in '}{':
                     forward = key == '}'
-                    self.find(self.is_checkpoint, forward=forward)
+                    condition = lambda square: square.empty
+                    self.find(condition, forward)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
                     status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
                         condition = lambda square: square.status == status
-                        self.find(condition, forward=forward)
+                        self.find(condition, forward)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -391,27 +392,15 @@ class Puzzle:
 
     @property
     def next_squares(self):
-        start_square = self.square
-        square       = start_square.next[self.direction]
+        square = self.next_square
         while square is not None:
-            yield square
-            square = square.next[self.direction]
-        # Wrap around to the beginning
-        square = self.clues[self.direction][0].span[0]
-        while square is not start_square:
             yield square
             square = square.next[self.direction]
 
     @property
     def prev_squares(self):
-        start_square = self.square
-        square       = start_square.prev[self.direction]
+        square = self.prev_square
         while square is not None:
-            yield square
-            square = square.prev[self.direction]
-        # Wrap around to the end
-        square = self.clues[self.direction][-1].span[-1]
-        while square is not start_square:
             yield square
             square = square.prev[self.direction]
 
@@ -477,14 +466,27 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
-    def is_checkpoint(self, square):
-        return (square.empty
-                and (square is square.clues[self.direction].span[0]
-                     or not square.prev[self.direction].empty))
-
-    def find(self, condition, forward=True):
+    def find(self, condition, forward=True, skip_repeats=True):
         squares = self.next_squares if forward else self.prev_squares
         try:
+            if skip_repeats:
+                # Using ]w [w (jump to next wrong square) as an example:
+                #  xxx   xxx
+                #  ^^^^^^#
+                # When at ^, jump to #. But compare these two scenarios:
+                #  xxx   xxx
+                #  ^     #
+                #   xx   xxx
+                #  ^#
+                # The next squares are identical ("xx   xxx"), but the
+                # square you jump to is different. So you also need to
+                # consider the current square ("xxx..." vs " xx...").
+                # Then you can simply skip all squares that meet the
+                # condition ("x"s), then all squares that don't (" "s);
+                # after two rounds of skipping, the next square in line
+                # is the square you want to jump to.
+                squares = chain([self.square], squares)
+                squares = dropwhile(condition, squares)
             self.jump(next(filter(condition, squares)))
         except StopIteration:
             pass
