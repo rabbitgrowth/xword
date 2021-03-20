@@ -3,7 +3,7 @@ import os
 import struct
 import sys
 from collections import defaultdict
-from itertools   import groupby
+from itertools   import chain, dropwhile, groupby
 from string      import ascii_uppercase, ascii_lowercase
 from textwrap    import TextWrapper
 
@@ -144,6 +144,8 @@ class Puzzle:
         # first across clue, which is not necessarily (0, 0), since
         # there could be black squares in the top left-hand corner.
         self.x, self.y = self.clues[self.direction][0].span[0]
+
+        self.last_find = None
 
     def run(self):
         # Prevent escape key delay
@@ -318,17 +320,59 @@ class Puzzle:
                     self.next()
                 elif key == 'b':
                     self.prev()
-                elif key == '}':
-                    self.skip()
-                elif key == '{':
-                    self.skip(forward=False)
+                elif key in 'fFtT;,':
+                    skip_one = False # see explanation below
+                    if key in 'fFtT':
+                        letter  = self.main_grid.getkey().upper()
+                        forward = key in 'ft'
+                        till    = key in 'tT'
+                        self.last_find = (letter, forward, till)
+                    elif self.last_find is not None:
+                        letter, forward, till = self.last_find
+                        if key == ',':
+                            forward = not forward
+                        # Imagine you're here:
+                        #    AB  AB
+                        #  ^
+                        # You press |ta|:
+                        #    AB  AB
+                        #   ^
+                        # From the computer's perspective, if you now press |;|
+                        # the cursor should stay put, because you're repeating |ta|,
+                        # which should bring you to the next square before an A --
+                        # where you already are. That might be the theoretically
+                        # correct behaviour, but a human user would expect the cursor
+                        # to jump to a more useful position:
+                        #    AB  AB
+                        #       ^
+                        # Therefore, as a special case, skip one character when
+                        # repeating |t| or |T|. Relevant Vim documentation:
+                        #                                            *cpo-;*
+                        #  ;   When using |,| or |;| to repeat the last |t| search
+                        #      and the cursor is right in front of the searched
+                        #      character, the cursor won't move. When not included,
+                        #      the cursor would skip over it and jump to the
+                        #      following occurrence.
+                        if till:
+                            skip_one = True
+                    found = self.find(lambda square: square.buffer == letter,
+                                      forward=forward, skip_one=skip_one)
+                    if found and till:
+                        if forward:
+                            self.retreat()
+                        else:
+                            self.advance()
+                elif key in '}{':
+                    forward = key == '}'
+                    self.find(lambda square: square.empty,
+                              forward=forward, skip_repeats=True)
                 elif key in '][':
                     forward  = key == ']'
                     next_key = self.main_grid.getkey()
                     status   = {'q': PENCIL, 'w': CROSS}.get(next_key)
                     if status is not None:
-                        condition = lambda square: square.status == status
-                        self.skip(forward=forward, condition=condition)
+                        self.find(lambda square: square.status == status,
+                                  forward=forward, skip_repeats=True)
                 elif key == 'r':
                     self.replace()
                 elif key == 'x':
@@ -373,6 +417,20 @@ class Puzzle:
     @property
     def prev_square(self):
         return self.square.prev[self.direction]
+
+    @property
+    def next_squares(self):
+        square = self.next_square
+        while square is not None:
+            yield square
+            square = square.next[self.direction]
+
+    @property
+    def prev_squares(self):
+        square = self.prev_square
+        while square is not None:
+            yield square
+            square = square.prev[self.direction]
 
     @property
     def clue(self):
@@ -436,31 +494,34 @@ class Puzzle:
             self.jump(self.clues[self.other_direction][-1].span[0])
             self.toggle()
 
-    def skip(self, forward=True, condition=None):
-        start_square    = self.square
-        start_direction = self.direction
-
-        while True:
-            if forward:
-                self.advance()
-            else:
-                self.retreat()
-
-            if (self.square is start_square
-                    and self.direction == start_direction):
-                # Nothing is found after two cycles,
-                # and you're back where you started.
-                # Break to prevent infinite loop.
-                break
-
-            if condition is None:
-                if (self.square.empty
-                        and (self.square is self.clue.span[0]
-                             or not self.prev_square.empty)):
-                    break
-            else:
-                if condition(self.square):
-                    break
+    def find(self, condition, forward=True, skip_repeats=False, skip_one=False):
+        assert not (skip_repeats and skip_one) # makes no sense to set both options
+        squares = self.next_squares if forward else self.prev_squares
+        try:
+            if skip_repeats:
+                # Using ]w [w (jump to next wrong square) as an example:
+                #  xxx   xxx
+                #  ^^^^^^#
+                # When at ^, jump to #. But compare these two scenarios:
+                #  xxx   xxx
+                #  ^     #
+                #   xx   xxx
+                #  ^#
+                # The next squares are identical ("xx   xxx"), but the
+                # square you jump to is different. So you also need to
+                # consider the current square ("xxx..." vs " xx...").
+                # Then you can simply skip all squares that meet the
+                # condition ("x"s), then all squares that don't (" "s);
+                # after two rounds of skipping, the next square in line
+                # is the square you want to jump to.
+                squares = chain([self.square], squares)
+                squares = dropwhile(condition, squares)
+            if skip_one:
+                next(squares)
+            self.jump(next(filter(condition, squares)))
+            return True
+        except StopIteration:
+            return False
 
     def advance(self):
         if self.next_square is not None:
