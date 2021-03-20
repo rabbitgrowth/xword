@@ -145,9 +145,7 @@ class Puzzle:
         # there could be black squares in the top left-hand corner.
         self.x, self.y = self.clues[self.direction][0].span[0]
 
-        self.find_letter  = None
-        self.find_forward = None
-        self.find_till    = None
+        self.last_find = None
 
     def run(self):
         # Prevent escape key delay
@@ -327,17 +325,11 @@ class Puzzle:
                         letter  = self.main_grid.getkey().upper()
                         forward = key in 'ft'
                         till    = key in 'tT'
-                        # Remember letter and direction for ; and ,
-                        self.find_letter  = letter
-                        self.find_forward = forward
-                        self.find_till    = till
-                    else:
-                        if self.find_letter is not None:
-                            letter  = self.find_letter
-                            forward = self.find_forward
-                            till    = self.find_till
-                            if key == ',':
-                                forward = not forward
+                        self.last_find = (letter, forward, till)
+                    elif self.last_find is not None:
+                        letter, forward, till = self.last_find
+                        if key == ',':
+                            forward = not forward
                     found = self.find(lambda square: square.buffer == letter,
                                       forward=forward, skip_repeats=False)
                     if found and till:
