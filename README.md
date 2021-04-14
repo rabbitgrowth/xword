@@ -1,5 +1,7 @@
 # xword-vim
 
+![Demo](demo.gif)
+
 The goal here is to build a terminal-based crossword solving interface with Vim-like keybindings.
 This means that you press `i` to enter “insert mode” to start typing answers,
 `<Esc>` or `jk` to quit insert mode, `h` `j` `k` `l` to move around the grid,
