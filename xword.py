@@ -152,6 +152,8 @@ class Puzzle:
         os.environ.setdefault('ESCDELAY', '0')
 
         def main(stdscr):
+            # Don't force white text on black
+            curses.use_default_colors()
             # Hide cursor
             curses.curs_set(0)
             # Compute size of puzzle grid
